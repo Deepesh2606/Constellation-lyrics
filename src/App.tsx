@@ -6,7 +6,21 @@ import { TrackSearchModal } from './components/TrackSearchModal';
 import { parseLrc } from './utils/lrcParser';
 import { fetchLyricsFromLRCLIB, PRESET_TRACKS } from './utils/lrclib';
 import { ParsedLine, TrackInfo } from './types';
-import { Sparkles, Maximize2, Minimize2, Terminal, Radio, Sliders } from 'lucide-react';
+import {
+  Sparkles,
+  Maximize2,
+  Minimize2,
+  Terminal,
+  Play,
+  Pause,
+  Search,
+  ChevronDown,
+  Music,
+  Download,
+  Info,
+} from 'lucide-react';
+import manifestRaw from '../CustomApps/constellation/manifest.json?raw';
+import indexJsRaw from '../CustomApps/constellation/index.js?raw';
 
 // Declarations for Spicetify
 declare global {
@@ -25,16 +39,6 @@ declare global {
     };
   }
 }
-
-const MANIFEST_STRING = `{
-  "name": "Constellation",
-  "icon": "<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"1.8\\" stroke-linecap=\\"round\\" stroke-linejoin=\\"round\\"><path d=\\"M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83\\"/><circle cx=\\"12\\" cy=\\"12\\" r=\\"3\\" fill=\\"currentColor\\"/><circle cx=\\"19\\" cy=\\"5\\" r=\\"1.5\\" fill=\\"currentColor\\"/><circle cx=\\"5\\" cy=\\"19\\" r=\\"1.5\\" fill=\\"currentColor\\"/><line x1=\\"12\\" y1=\\"12\\" x2=\\"19\\" y2=\\"5\\" stroke=\\"currentColor\\" stroke-dasharray=\\"2 2\\"/><line x1=\\"12\\" y1=\\"12\\" x2=\\"5\\" y2=\\"19\\" stroke=\\"currentColor\\" stroke-dasharray=\\"2 2\\"/></svg>",
-  "active-icon": "<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 24 24\\" fill=\\"currentColor\\" stroke=\\"currentColor\\" stroke-width=\\"1.8\\" stroke-linecap=\\"round\\" stroke-linejoin=\\"round\\"><path d=\\"M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83\\" stroke=\\"currentColor\\"/><circle cx=\\"12\\" cy=\\"12\\" r=\\"3.5\\" fill=\\"#d4ff3a\\"/><circle cx=\\"19\\" cy=\\"5\\" r=\\"2\\" fill=\\"#d4ff3a\\"/><circle cx=\\"5\\" cy=\\"19\\" r=\\"2\\" fill=\\"#d4ff3a\\"/><line x1=\\"12\\" y1=\\"12\\" x2=\\"19\\" y2=\\"5\\" stroke=\\"#d4ff3a\\"/><line x1=\\"12\\" y1=\\"12\\" x2=\\"5\\" y2=\\"19\\" stroke=\\"#d4ff3a\\"/></svg>"
-}`;
-
-const INDEX_STRING_PREVIEW = `// CustomApps/constellation/index.js
-// Synced lyrics constellation animation on #0a0a0a with #d4ff3a lime glow
-// Full file available in /CustomApps/constellation/index.js`;
 
 export default function App() {
   const [isSpicetifyNative, setIsSpicetifyNative] = useState(false);
@@ -150,9 +154,7 @@ export default function App() {
     };
   }, [currentTrack]);
 
-  // Playback Loop:
-  // - If Spicetify native: reads Spicetify.Player.getProgress()
-  // - If simulated: advances currentTimeMs based on delta time, pauses when isPlaying is false
+  // Playback Loop
   useEffect(() => {
     const loop = (now: number) => {
       animFrameRef.current = requestAnimationFrame(loop);
@@ -178,7 +180,7 @@ export default function App() {
           const duration = currentTrack.durationMs || 180000;
           const next = prev + delta;
           if (next >= duration) {
-            return 0; // loop back or next track
+            return 0; // loop back
           }
           return next;
         });
@@ -244,35 +246,87 @@ export default function App() {
       className="w-screen h-screen flex flex-col bg-[#0a0a0a] text-white overflow-hidden select-none"
     >
       {/* Top Bar / App Header */}
-      <header className="h-14 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-neutral-800/80 px-4 md:px-6 flex items-center justify-between z-30 shrink-0">
+      <header className="h-16 bg-[#0a0a0a]/95 backdrop-blur-md border-b border-neutral-800/80 px-4 md:px-6 flex items-center justify-between z-30 shrink-0 gap-3">
+        {/* Left: Branding & Tag */}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#d4ff3a]/15 text-[#d4ff3a] flex items-center justify-center border border-[#d4ff3a]/30 shadow-[0_0_12px_rgba(212,255,58,0.25)]">
-            <Sparkles className="w-4 h-4" />
+          <div className="w-9 h-9 rounded-xl bg-[#d4ff3a]/15 text-[#d4ff3a] flex items-center justify-center border border-[#d4ff3a]/40 shadow-[0_0_14px_rgba(212,255,58,0.3)]">
+            <Sparkles className="w-5 h-5" />
           </div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-sm font-bold tracking-wider uppercase text-white">Constellation</h1>
-            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#d4ff3a]/15 text-[#d4ff3a] border border-[#d4ff3a]/30">
-              Spicetify Custom App
-            </span>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-bold tracking-wider uppercase text-white">Constellation</h1>
+              <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#d4ff3a]/20 text-[#d4ff3a] font-semibold border border-[#d4ff3a]/30">
+                Spicetify App
+              </span>
+            </div>
+            <div className="text-[11px] text-neutral-400 hidden sm:block">
+              Synced Spotify Lyrics Starfield
+            </div>
           </div>
         </div>
 
-        {/* Center: Environment status tag */}
-        <div className="hidden md:flex items-center gap-2 text-xs text-neutral-400">
-          <span
-            className={`w-2 h-2 rounded-full ${
-              isSpicetifyNative
-                ? 'bg-[#d4ff3a] shadow-[0_0_8px_#d4ff3a]'
-                : 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]'
-            }`}
-          />
-          <span>{isSpicetifyNative ? 'Spicetify Native Player' : 'Spotify Simulator Mode'}</span>
-        </div>
-
-        {/* Right: Glow Intensity, Spicetify Modal, Fullscreen */}
+        {/* Center: Quick Interactive Playback & Song Picker Buttons */}
         <div className="flex items-center gap-2">
+          {/* Quick Play/Pause Button */}
+          <button
+            onClick={handleTogglePlay}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-[#d4ff3a] text-white text-xs font-semibold transition-all hover:bg-neutral-800 shadow-md"
+            title={isPlaying ? 'Pause Lyrics' : 'Play Lyrics'}
+          >
+            {isPlaying ? (
+              <Pause className="w-3.5 h-3.5 fill-current text-[#d4ff3a]" />
+            ) : (
+              <Play className="w-3.5 h-3.5 fill-current text-[#d4ff3a]" />
+            )}
+            <span className="hidden md:inline">{isPlaying ? 'Pause' : 'Play'}</span>
+          </button>
+
+          {/* Quick Song Switcher */}
+          <div className="relative">
+            <select
+              value={currentTrack.title}
+              onChange={(e) => {
+                const selected = PRESET_TRACKS.find((t) => t.title === e.target.value);
+                if (selected) {
+                  setCurrentTrack(selected);
+                  setCurrentTimeMs(0);
+                }
+              }}
+              className="bg-neutral-900 text-xs font-medium text-neutral-200 border border-neutral-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#d4ff3a] cursor-pointer hover:bg-neutral-800 transition-colors"
+            >
+              {PRESET_TRACKS.map((t) => (
+                <option key={t.uri} value={t.title}>
+                  🎵 {t.title} - {t.artist}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Search Songs Button */}
+          <button
+            onClick={() => setIsSearchOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-[#d4ff3a] text-neutral-300 hover:text-white text-xs font-medium transition-colors"
+            title="Search Any Song on LRCLIB"
+          >
+            <Search className="w-3.5 h-3.5 text-[#d4ff3a]" />
+            <span className="hidden lg:inline">Search Songs</span>
+          </button>
+        </div>
+
+        {/* Right: Big "How to Use" Button & Fullscreen */}
+        <div className="flex items-center gap-2">
+          {/* Big Vibrant "How to Use / Install to Spotify" Button */}
+          <button
+            onClick={() => setIsExportOpen(true)}
+            className="px-3.5 py-2 rounded-xl bg-[#d4ff3a] text-black hover:bg-[#c2ed2c] text-xs font-bold flex items-center gap-2 transition-all shadow-[0_0_16px_rgba(212,255,58,0.35)] hover:scale-105 active:scale-95"
+            title="View Spicetify install instructions and export files"
+          >
+            <Terminal className="w-4 h-4 text-black" />
+            <span>How to Use / Install</span>
+          </button>
+
           {/* Glow selector */}
-          <div className="hidden sm:flex items-center bg-neutral-900 border border-neutral-800 rounded-lg p-0.5 text-xs">
+          <div className="hidden xl:flex items-center bg-neutral-900 border border-neutral-800 rounded-lg p-0.5 text-xs">
             <button
               onClick={() => setGlowIntensity('subtle')}
               className={`px-2 py-1 rounded transition-colors ${
@@ -306,67 +360,62 @@ export default function App() {
           </div>
 
           <button
-            onClick={() => setIsExportOpen(true)}
-            className="px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-800 hover:border-[#d4ff3a]/40 text-neutral-300 hover:text-[#d4ff3a] text-xs flex items-center gap-1.5 transition-colors"
-          >
-            <Terminal className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Spicetify Files</span>
-          </button>
-
-          <button
             onClick={toggleFullscreen}
-            className="p-1.5 rounded-lg bg-neutral-900 border border-neutral-800 hover:text-[#d4ff3a] text-neutral-400 transition-colors"
+            className="p-2 rounded-lg bg-neutral-900 border border-neutral-800 hover:text-[#d4ff3a] text-neutral-400 transition-colors"
             title="Toggle Fullscreen"
           >
-            {isFullscreen ? (
-              <Minimize2 className="w-4 h-4" />
-            ) : (
-              <Maximize2 className="w-4 h-4" />
-            )}
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
         </div>
       </header>
 
-      {/* Main Celestial Constellation Canvas */}
-      <main className="flex-1 relative w-full h-full overflow-hidden bg-[#0a0a0a]">
+      {/* Main Celestial Constellation Canvas (min-h-0 so flex column respects height without pushing footer offscreen) */}
+      <main className="flex-1 min-h-0 relative w-full overflow-hidden bg-[#0a0a0a]">
         <ConstellationCanvas
           parsedLines={parsedLines}
           currentTimeMs={currentTimeMs}
+          durationMs={currentTrack.durationMs}
           isPlaying={isPlaying}
           trackTitle={currentTrack.title}
           trackArtist={currentTrack.artist}
           isLoadingLyrics={isLoadingLyrics}
           errorLyrics={errorLyrics}
           onWordClick={(time) => handleSeek(time)}
+          onTogglePlay={handleTogglePlay}
+          onNextTrack={handleNextTrack}
+          onOpenSearch={() => setIsSearchOpen(true)}
+          onOpenExport={() => setIsExportOpen(true)}
           glowIntensity={glowIntensity}
         />
       </main>
 
-      {/* Spotify Player Control Bar */}
-      <SpotifyPlayerBar
-        currentTrack={currentTrack}
-        isPlaying={isPlaying}
-        currentTimeMs={currentTimeMs}
-        onTogglePlay={handleTogglePlay}
-        onSeek={handleSeek}
-        onPrevTrack={handlePrevTrack}
-        onNextTrack={handleNextTrack}
-        presetTracks={PRESET_TRACKS}
-        onSelectTrack={(t) => {
-          setCurrentTrack(t);
-          setCurrentTimeMs(0);
-        }}
-        onOpenSearch={() => setIsSearchOpen(true)}
-        onOpenExport={() => setIsExportOpen(true)}
-        isSpicetifyNative={isSpicetifyNative}
-      />
+      {/* Spotify Player Control Bar (Always firmly anchored at bottom) */}
+      <div className="shrink-0 z-40 bg-[#121212] border-t border-neutral-800 shadow-2xl">
+        <SpotifyPlayerBar
+          currentTrack={currentTrack}
+          isPlaying={isPlaying}
+          currentTimeMs={currentTimeMs}
+          onTogglePlay={handleTogglePlay}
+          onSeek={handleSeek}
+          onPrevTrack={handlePrevTrack}
+          onNextTrack={handleNextTrack}
+          presetTracks={PRESET_TRACKS}
+          onSelectTrack={(t) => {
+            setCurrentTrack(t);
+            setCurrentTimeMs(0);
+          }}
+          onOpenSearch={() => setIsSearchOpen(true)}
+          onOpenExport={() => setIsExportOpen(true)}
+          isSpicetifyNative={isSpicetifyNative}
+        />
+      </div>
 
       {/* Modal: View Custom App Files & Installation Guide */}
       <SpicetifyExportModal
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
-        manifestContent={MANIFEST_STRING}
-        indexContent={INDEX_STRING_PREVIEW}
+        manifestContent={manifestRaw}
+        indexContent={indexJsRaw}
       />
 
       {/* Modal: Search LRCLIB or enter custom LRC */}

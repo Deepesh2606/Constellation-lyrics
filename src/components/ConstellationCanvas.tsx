@@ -1,29 +1,49 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { ConstellationNode, AmbientStar, ParsedLine } from '../types';
 import { buildConstellationLayout, generateAmbientStars } from '../utils/constellationLayout';
-import { Eye, Navigation, ZoomIn, ZoomOut, Sparkles } from 'lucide-react';
+import {
+  Navigation,
+  ZoomIn,
+  ZoomOut,
+  Sparkles,
+  Play,
+  Pause,
+  SkipForward,
+  Search,
+  Terminal,
+} from 'lucide-react';
 
 interface ConstellationCanvasProps {
   parsedLines: ParsedLine[];
   currentTimeMs: number;
+  durationMs?: number;
   isPlaying: boolean;
   trackTitle: string;
   trackArtist: string;
   isLoadingLyrics: boolean;
   errorLyrics: string | null;
   onWordClick?: (timeMs: number) => void;
+  onTogglePlay?: () => void;
+  onNextTrack?: () => void;
+  onOpenSearch?: () => void;
+  onOpenExport?: () => void;
   glowIntensity?: 'subtle' | 'normal' | 'supernova';
 }
 
 export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
   parsedLines,
   currentTimeMs,
+  durationMs = 180000,
   isPlaying,
   trackTitle,
   trackArtist,
   isLoadingLyrics,
   errorLyrics,
   onWordClick,
+  onTogglePlay,
+  onNextTrack,
+  onOpenSearch,
+  onOpenExport,
   glowIntensity = 'normal',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -316,7 +336,6 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
             {nodes.map((node) => {
               const isWordActive = activeNode?.id === node.id;
               const isWordPast = currentTimeMs >= node.endTime;
-              const isFuture = currentTimeMs < node.startTime;
 
               let starRadius = 2.5;
               let starOpacity = 0.35;
@@ -400,7 +419,6 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                         strokeWidth="1"
                         strokeOpacity="0.3"
                       />
-                      {/* Celestial crosshair spikes */}
                       <line
                         x1={node.x - 14}
                         y1={node.y}
@@ -463,36 +481,42 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
       <div className="absolute top-4 right-4 flex items-center gap-2 z-20 pointer-events-auto">
         <button
           onClick={handleRecenter}
-          className={`px-3 py-1.5 text-xs font-medium rounded-full flex items-center gap-1.5 transition-all backdrop-blur-md border ${
+          className={`px-3 py-1.5 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all backdrop-blur-md border ${
             autoFollow
               ? 'bg-[#d4ff3a]/20 border-[#d4ff3a] text-[#d4ff3a] shadow-[0_0_12px_rgba(212,255,58,0.25)]'
-              : 'bg-neutral-900/80 border-neutral-800 text-neutral-400 hover:text-white'
+              : 'bg-neutral-900/90 border-neutral-700 text-neutral-300 hover:text-white'
           }`}
           title="Keep camera focused on active lyrics"
         >
           <Navigation className={`w-3.5 h-3.5 ${autoFollow ? 'rotate-45' : ''}`} />
-          {autoFollow ? 'Auto-Tracking' : 'Recenter Camera'}
+          {autoFollow ? 'Tracking Active Lyrics' : 'Recenter Camera'}
         </button>
 
-        <div className="flex items-center bg-neutral-900/80 backdrop-blur-md border border-neutral-800 rounded-full p-0.5">
+        <div className="flex items-center bg-neutral-900/90 backdrop-blur-md border border-neutral-700 rounded-full p-0.5">
           <button
             onClick={() => setZoomLevel((z) => Math.min(2.2, z + 0.15))}
-            className="p-1.5 text-neutral-400 hover:text-[#d4ff3a] rounded-full transition-colors"
+            className="p-1.5 text-neutral-300 hover:text-[#d4ff3a] rounded-full transition-colors"
             title="Zoom In"
           >
             <ZoomIn className="w-3.5 h-3.5" />
           </button>
-          <span className="text-[11px] font-mono text-neutral-400 px-1.5">
+          <span className="text-[11px] font-mono text-neutral-300 px-1.5">
             {Math.round(zoomLevel * 100)}%
           </span>
           <button
             onClick={() => setZoomLevel((z) => Math.max(0.45, z - 0.15))}
-            className="p-1.5 text-neutral-400 hover:text-[#d4ff3a] rounded-full transition-colors"
+            className="p-1.5 text-neutral-300 hover:text-[#d4ff3a] rounded-full transition-colors"
             title="Zoom Out"
           >
             <ZoomOut className="w-3.5 h-3.5" />
           </button>
         </div>
+      </div>
+
+      {/* Interactive Helper Hint (Top Left) */}
+      <div className="absolute top-4 left-4 hidden md:flex items-center gap-2 px-3 py-1.5 bg-neutral-900/80 backdrop-blur-md border border-neutral-800 rounded-full text-[11px] text-neutral-400 pointer-events-none z-20">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#d4ff3a]" />
+        <span>Click any star to seek • Drag space to pan</span>
       </div>
 
       {/* Status Overlay: Loading / Error / Empty state */}
@@ -521,18 +545,67 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
         </div>
       )}
 
-      {/* Track Info Badge at the Bottom (matching Spicetify requirement) */}
-      <div className="constellation-bottom-bar absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 px-6 py-2.5 bg-neutral-950/80 backdrop-blur-xl border border-[#d4ff3a]/30 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.7),0_0_20px_rgba(212,255,58,0.12)] z-20 pointer-events-auto max-w-[85%] text-center transition-all hover:border-[#d4ff3a]/60">
-        <div className="text-sm font-semibold text-white flex items-center gap-2 max-w-full overflow-hidden">
-          <span
-            className={`inline-block w-2 h-2 rounded-full bg-[#d4ff3a] shadow-[0_0_8px_#d4ff3a] ${
-              isPlaying ? 'animate-pulse' : 'opacity-60'
-            }`}
-          />
-          <span className="truncate">{trackTitle || 'Waiting for playback'}</span>
+      {/* Track Info & Interactive Player Pill (Floating on Canvas) */}
+      <div className="constellation-bottom-bar absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-2.5 bg-neutral-950/90 backdrop-blur-xl border border-[#d4ff3a]/40 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.8),0_0_20px_rgba(212,255,58,0.18)] z-20 pointer-events-auto max-w-[90%] transition-all hover:border-[#d4ff3a]/70">
+        {/* On-Canvas Play/Pause Button */}
+        {onTogglePlay && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onTogglePlay();
+            }}
+            className="w-8 h-8 rounded-full bg-[#d4ff3a] text-black flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-[0_0_12px_rgba(212,255,58,0.4)] shrink-0"
+            title={isPlaying ? 'Pause' : 'Play'}
+          >
+            {isPlaying ? (
+              <Pause className="w-4 h-4 fill-current text-black" />
+            ) : (
+              <Play className="w-4 h-4 fill-current text-black ml-0.5" />
+            )}
+          </button>
+        )}
+
+        {/* Track Title and Artist */}
+        <div className="flex flex-col overflow-hidden max-w-[220px] sm:max-w-xs">
+          <div className="text-xs sm:text-sm font-semibold text-white truncate flex items-center gap-1.5">
+            <span
+              className={`inline-block w-2 h-2 rounded-full bg-[#d4ff3a] shrink-0 shadow-[0_0_6px_#d4ff3a] ${
+                isPlaying ? 'animate-pulse' : 'opacity-60'
+              }`}
+            />
+            <span className="truncate">{trackTitle || 'Waiting for playback'}</span>
+          </div>
+          {trackArtist && (
+            <div className="text-[11px] text-neutral-400 truncate pl-3.5">{trackArtist}</div>
+          )}
         </div>
-        {trackArtist && (
-          <div className="text-xs text-neutral-400 truncate max-w-full">{trackArtist}</div>
+
+        {/* Skip to Next Song shortcut */}
+        {onNextTrack && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onNextTrack();
+            }}
+            className="p-1.5 text-neutral-400 hover:text-white rounded-full hover:bg-neutral-800 transition-colors"
+            title="Next Song"
+          >
+            <SkipForward className="w-4 h-4 fill-current" />
+          </button>
+        )}
+
+        {/* Search Songs shortcut */}
+        {onOpenSearch && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenSearch();
+            }}
+            className="p-1.5 text-neutral-400 hover:text-[#d4ff3a] rounded-full hover:bg-neutral-800 transition-colors"
+            title="Search Song Lyrics"
+          >
+            <Search className="w-4 h-4" />
+          </button>
         )}
       </div>
     </div>
