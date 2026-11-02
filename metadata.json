@@ -1,0 +1,6 @@
+{
+  "name": "Constellation - Spicetify Synced Lyrics",
+  "description": "Spicetify custom app displaying real-time synced Spotify lyrics as a celestial glowing constellation animation on a dark background.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
