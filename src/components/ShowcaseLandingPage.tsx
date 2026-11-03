@@ -19,7 +19,9 @@ import {
   ShieldCheck,
   Video,
   Eye,
-  Github
+  Github,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { ConstellationCanvas } from './ConstellationCanvas';
 import { PRESET_TRACKS } from '../utils/lrclib';
@@ -34,6 +36,7 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
   const [videoSrc, setVideoSrc] = useState<string>('/demo.mp4');
   const [videoLoaded, setVideoLoaded] = useState<boolean>(true);
   const [isPlayingVideo, setIsPlayingVideo] = useState<boolean>(true);
+  const [isMuted, setIsMuted] = useState<boolean>(true);
   const [activeScreenTab, setActiveScreenTab] = useState<'video' | 'live'>('video');
   const [copiedStep, setCopiedStep] = useState<number | null>(null);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
@@ -68,6 +71,11 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
       setVideoLoaded(true);
       setActiveScreenTab('video');
       setIsPlayingVideo(true);
+      setIsMuted(false);
+      if (videoRef.current) {
+        videoRef.current.muted = false;
+        videoRef.current.play().catch(() => {});
+      }
     }
   };
 
@@ -80,17 +88,50 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
       setVideoLoaded(true);
       setActiveScreenTab('video');
       setIsPlayingVideo(true);
+      setIsMuted(false);
+      if (videoRef.current) {
+        videoRef.current.muted = false;
+        videoRef.current.play().catch(() => {});
+      }
     }
   };
 
-  const toggleVideoPlayback = () => {
+  const toggleMute = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!videoRef.current) return;
+    const nextMuted = !videoRef.current.muted;
+    videoRef.current.muted = nextMuted;
+    setIsMuted(nextMuted);
+    if (!nextMuted && videoRef.current.paused) {
+      videoRef.current.play().catch(() => {});
+      setIsPlayingVideo(true);
+    }
+  };
+
+  const toggleVideoPlayback = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
-      videoRef.current.play();
+      videoRef.current.play().catch(() => {});
       setIsPlayingVideo(true);
     } else {
       videoRef.current.pause();
       setIsPlayingVideo(false);
+    }
+  };
+
+  const handleVideoClick = () => {
+    if (!videoRef.current) return;
+    // On first user click anywhere on video, unmute and play music
+    if (isMuted) {
+      videoRef.current.muted = false;
+      setIsMuted(false);
+      if (videoRef.current.paused) {
+        videoRef.current.play().catch(() => {});
+        setIsPlayingVideo(true);
+      }
+    } else {
+      toggleVideoPlayback();
     }
   };
 
@@ -346,22 +387,60 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
               {activeScreenTab === 'video' && (
                 <>
                   {videoLoaded ? (
-                    <div className="relative w-full h-full cursor-pointer" onClick={toggleVideoPlayback}>
+                    <div className="relative w-full h-full cursor-pointer" onClick={handleVideoClick}>
                       <video
                         ref={videoRef}
                         src={videoSrc}
                         autoPlay
                         loop
-                        muted
+                        muted={isMuted}
                         playsInline
                         onLoadedData={() => setVideoLoaded(true)}
                         onError={() => setVideoLoaded(false)}
                         className="w-full h-full object-cover"
                       />
-                      {/* Play / Pause Float Pill Overlay */}
-                      <div className="absolute bottom-5 right-5 z-20 backdrop-blur-md bg-black/60 border border-white/10 rounded-full px-3.5 py-1.5 flex items-center gap-2 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                        {isPlayingVideo ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
-                        <span>{isPlayingVideo ? 'Click to Pause' : 'Click to Play'}</span>
+
+                      {/* Prominent Floating Unmute Button */}
+                      {isMuted && (
+                        <button
+                          onClick={toggleMute}
+                          className="absolute top-6 right-6 z-30 backdrop-blur-xl bg-red-600 hover:bg-red-500 border border-white/20 text-white rounded-full px-4 py-2 text-xs font-bold flex items-center gap-2 shadow-[0_0_25px_rgba(239,68,68,0.8)] animate-pulse hover:scale-105 transition-all cursor-pointer"
+                        >
+                          <VolumeX className="w-4 h-4 text-white" />
+                          <span>Click to Unmute Music 🎵</span>
+                        </button>
+                      )}
+
+                      {/* Bottom Controls Overlay */}
+                      <div className="absolute bottom-5 right-5 z-20 flex items-center gap-2 opacity-95 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={toggleMute}
+                          className="backdrop-blur-md bg-black/80 hover:bg-black border border-white/20 rounded-full px-3.5 py-1.5 flex items-center gap-1.5 text-xs text-white transition-all shadow-xl hover:scale-105 cursor-pointer"
+                          title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
+                        >
+                          {isMuted ? (
+                            <>
+                              <VolumeX className="w-3.5 h-3.5 text-red-400" />
+                              <span className="font-semibold text-red-300">Unmute Audio</span>
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className="font-semibold text-emerald-300">Mute Audio</span>
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleVideoPlayback();
+                          }}
+                          className="backdrop-blur-md bg-black/80 hover:bg-black border border-white/20 rounded-full px-3 py-1.5 flex items-center gap-1.5 text-xs text-white transition-all shadow-xl hover:scale-105 cursor-pointer"
+                        >
+                          {isPlayingVideo ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
+                          <span>{isPlayingVideo ? 'Pause' : 'Play'}</span>
+                        </button>
                       </div>
                     </div>
                   ) : (
