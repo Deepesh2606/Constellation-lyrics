@@ -1,5 +1,12 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { ConstellationNode, AmbientStar, ParsedLine } from '../types';
+import {
+  ConstellationNode,
+  AmbientStar,
+  ParsedLine,
+  ConstellationSettings,
+  DEFAULT_SETTINGS,
+  FONT_FAMILY_MAP,
+} from '../types';
 import { buildConstellationLayout, generateAmbientStars } from '../utils/constellationLayout';
 import {
   Navigation,
@@ -10,7 +17,7 @@ import {
   Pause,
   SkipForward,
   Search,
-  Terminal,
+  Sliders,
 } from 'lucide-react';
 
 interface ConstellationCanvasProps {
@@ -22,32 +29,155 @@ interface ConstellationCanvasProps {
   trackArtist: string;
   isLoadingLyrics: boolean;
   errorLyrics: string | null;
+  settings?: ConstellationSettings;
   onWordClick?: (timeMs: number) => void;
   onTogglePlay?: () => void;
   onNextTrack?: () => void;
   onOpenSearch?: () => void;
+  onOpenSettings?: () => void;
   onOpenExport?: () => void;
-  glowIntensity?: 'subtle' | 'normal' | 'supernova';
+}
+
+export interface LinearCirclePos {
+  x: number;
+  y: number;
+  activeIndex: number;
+  activeLineIndex: number;
+  progress: number;
+  currNode: ConstellationNode;
+  nextNode: ConstellationNode | null;
+}
+
+export function computeLinearCirclePos(
+  nodes: ConstellationNode[],
+  timeMs: number
+): LinearCirclePos | null {
+  if (!nodes || nodes.length === 0) return null;
+
+  // Before first word
+  if (timeMs <= nodes[0].startTime) {
+    return {
+      x: nodes[0].x,
+      y: nodes[0].y,
+      activeIndex: 0,
+      activeLineIndex: nodes[0].lineIndex,
+      progress: 0,
+      currNode: nodes[0],
+      nextNode: nodes[1] || null,
+    };
+  }
+
+  const lastNode = nodes[nodes.length - 1];
+  // After last word
+  if (timeMs >= lastNode.endTime) {
+    return {
+      x: lastNode.x,
+      y: lastNode.y,
+      activeIndex: nodes.length - 1,
+      activeLineIndex: lastNode.lineIndex,
+      progress: 1,
+      currNode: lastNode,
+      nextNode: null,
+    };
+  }
+
+  // Find the exact interval
+  for (let i = 0; i < nodes.length; i++) {
+    const curr = nodes[i];
+    const next = nodes[i + 1];
+
+    if (!next) {
+      return {
+        x: curr.x,
+        y: curr.y,
+        activeIndex: i,
+        activeLineIndex: curr.lineIndex,
+        progress: 1,
+        currNode: curr,
+        nextNode: null,
+      };
+    }
+
+    if (timeMs >= curr.startTime && timeMs < next.startTime) {
+      const duration = next.startTime - curr.startTime;
+      if (duration <= 0) {
+        return {
+          x: curr.x,
+          y: curr.y,
+          activeIndex: i,
+          activeLineIndex: curr.lineIndex,
+          progress: 0,
+          currNode: curr,
+          nextNode: next,
+        };
+      }
+
+      // Check for pause / instrumental break between lines
+      const interLineGap = next.startTime - curr.endTime;
+      let progress = 0;
+
+      if (interLineGap > 1200) {
+        if (timeMs <= curr.endTime) {
+          // Still singing current line's final word
+          progress = 0;
+        } else if (timeMs < next.startTime - 900) {
+          // In the middle of an instrumental break, rest at curr
+          progress = 0;
+        } else {
+          // Final 900ms lead-in right before the next line starts: glide linearly to next!
+          const leadProgress = (timeMs - (next.startTime - 900)) / 900;
+          progress = Math.max(0, Math.min(1, leadProgress));
+        }
+      } else {
+        // Standard contiguous linear progression between words:
+        progress = Math.max(0, Math.min(1, (timeMs - curr.startTime) / duration));
+      }
+
+      const x = curr.x + (next.x - curr.x) * progress;
+      const y = curr.y + (next.y - curr.y) * progress;
+
+      return {
+        x,
+        y,
+        activeIndex: i,
+        activeLineIndex: curr.lineIndex,
+        progress,
+        currNode: curr,
+        nextNode: next,
+      };
+    }
+  }
+
+  return {
+    x: lastNode.x,
+    y: lastNode.y,
+    activeIndex: nodes.length - 1,
+    activeLineIndex: lastNode.lineIndex,
+    progress: 1,
+    currNode: lastNode,
+    nextNode: null,
+  };
 }
 
 export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
   parsedLines,
   currentTimeMs,
-  durationMs = 180000,
   isPlaying,
   trackTitle,
   trackArtist,
   isLoadingLyrics,
   errorLyrics,
+  settings = DEFAULT_SETTINGS,
   onWordClick,
   onTogglePlay,
   onNextTrack,
   onOpenSearch,
-  onOpenExport,
-  glowIntensity = 'normal',
+  onOpenSettings,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const beaconGroupRef = useRef<SVGGElement>(null);
+  const progressLineRef = useRef<SVGLineElement>(null);
 
   // Layout states
   const [nodes, setNodes] = useState<ConstellationNode[]>([]);
@@ -61,6 +191,26 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
   const isDraggingRef = useRef(false);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
 
+  // Dynamic font from settings
+  const fontInfo = useMemo(() => {
+    return FONT_FAMILY_MAP[settings.fontFamily] || FONT_FAMILY_MAP.sans;
+  }, [settings.fontFamily]);
+
+  // Star count from settings
+  const starCount = useMemo(() => {
+    switch (settings.starDensity) {
+      case 'off':
+        return 0;
+      case 'low':
+        return 40;
+      case 'high':
+        return 220;
+      case 'medium':
+      default:
+        return 100;
+    }
+  }, [settings.starDensity]);
+
   // Rebuild constellation layout when parsedLines or dimension changes
   useEffect(() => {
     if (!containerRef.current) return;
@@ -71,7 +221,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
 
     const newNodes = buildConstellationLayout(parsedLines, w, h, 56);
     setNodes(newNodes);
-    setAmbientStars(generateAmbientStars(100, w, h));
+    setAmbientStars(generateAmbientStars(starCount, w, h));
 
     if (newNodes.length > 0) {
       cameraRef.current.x = newNodes[0].x;
@@ -79,7 +229,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
       cameraRef.current.targetX = newNodes[0].x;
       cameraRef.current.targetY = newNodes[0].y;
     }
-  }, [parsedLines]);
+  }, [parsedLines, starCount]);
 
   // Window resize observer
   useEffect(() => {
@@ -96,58 +246,56 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
     return () => ro.disconnect();
   }, []);
 
-  // Compute active word and active line based on currentTimeMs
-  const { activeNode, activeLineIdx } = useMemo(() => {
-    let foundNode: ConstellationNode | null = null;
-    let lineIdx = -1;
-
-    for (const node of nodes) {
-      if (currentTimeMs >= node.startTime && currentTimeMs < node.endTime) {
-        foundNode = node;
-        lineIdx = node.lineIndex;
-        break;
-      }
-    }
-
-    if (!foundNode && nodes.length > 0) {
-      for (let i = 0; i < nodes.length; i++) {
-        if (currentTimeMs < nodes[i].startTime) {
-          lineIdx = i > 0 ? nodes[i - 1].lineIndex : 0;
-          break;
-        }
-      }
-      if (lineIdx === -1 && currentTimeMs >= nodes[nodes.length - 1].endTime) {
-        lineIdx = nodes[nodes.length - 1].lineIndex;
-      }
-    }
-
-    return { activeNode: foundNode, activeLineIdx: lineIdx };
+  // Compute active word and active line
+  const circlePos = useMemo(() => {
+    return computeLinearCirclePos(nodes, currentTimeMs);
   }, [nodes, currentTimeMs]);
 
-  // Auto-camera smooth update with requestAnimationFrame
+  const activeNode = circlePos ? nodes[circlePos.activeIndex] : null;
+  const activeLineIdx = circlePos ? circlePos.activeLineIndex : -1;
+
+  // Ultra-smooth 60/120 FPS continuous linear positioning loop
   useEffect(() => {
     let animId: number;
 
     const loop = () => {
       animId = requestAnimationFrame(loop);
 
-      if (autoFollow) {
-        if (activeNode) {
-          cameraRef.current.targetX = activeNode.x;
-          cameraRef.current.targetY = activeNode.y;
-        } else if (activeLineIdx >= 0) {
-          const lineNodes = nodes.filter((n) => n.lineIndex === activeLineIdx);
-          if (lineNodes.length > 0) {
-            const midNode = lineNodes[Math.floor(lineNodes.length / 2)];
-            cameraRef.current.targetX = midNode.x;
-            cameraRef.current.targetY = midNode.y;
-          }
+      if (circlePos) {
+        // 1. Direct high-precision transform update on the moving circle beacon
+        if (beaconGroupRef.current) {
+          beaconGroupRef.current.style.display = 'block';
+          beaconGroupRef.current.setAttribute(
+            'transform',
+            `translate(${circlePos.x.toFixed(2)}, ${circlePos.y.toFixed(2)})`
+          );
         }
+
+        // 2. Direct update of linear progress trail line
+        if (progressLineRef.current && settings.showProgressTrail && circlePos.progress > 0) {
+          progressLineRef.current.style.display = 'block';
+          progressLineRef.current.setAttribute('x1', circlePos.currNode.x.toFixed(2));
+          progressLineRef.current.setAttribute('y1', circlePos.currNode.y.toFixed(2));
+          progressLineRef.current.setAttribute('x2', circlePos.x.toFixed(2));
+          progressLineRef.current.setAttribute('y2', circlePos.y.toFixed(2));
+        } else if (progressLineRef.current) {
+          progressLineRef.current.style.display = 'none';
+        }
+
+        // 3. Camera target tracks the moving circle linearly
+        if (autoFollow) {
+          cameraRef.current.targetX = circlePos.x;
+          cameraRef.current.targetY = circlePos.y;
+        }
+      } else if (beaconGroupRef.current) {
+        beaconGroupRef.current.style.display = 'none';
+        if (progressLineRef.current) progressLineRef.current.style.display = 'none';
       }
 
       // Smooth camera lerp
-      cameraRef.current.x += (cameraRef.current.targetX - cameraRef.current.x) * 0.06;
-      cameraRef.current.y += (cameraRef.current.targetY - cameraRef.current.y) * 0.06;
+      const smoothness = settings.cameraSmoothness || 0.06;
+      cameraRef.current.x += (cameraRef.current.targetX - cameraRef.current.x) * smoothness;
+      cameraRef.current.y += (cameraRef.current.targetY - cameraRef.current.y) * smoothness;
 
       if (svgRef.current) {
         const gTransform = svgRef.current.querySelector('#camera-viewport-group');
@@ -166,7 +314,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [autoFollow, activeNode, activeLineIdx, nodes, dimensions, zoomLevel]);
+  }, [autoFollow, circlePos, dimensions, zoomLevel, settings.cameraSmoothness, settings.showProgressTrail]);
 
   // Mouse pan & zoom handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -201,20 +349,54 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
   const handleRecenter = () => {
     setAutoFollow(true);
     setZoomLevel(1);
-    if (activeNode) {
-      cameraRef.current.targetX = activeNode.x;
-      cameraRef.current.targetY = activeNode.y;
+    if (circlePos) {
+      cameraRef.current.targetX = circlePos.x;
+      cameraRef.current.targetY = circlePos.y;
     }
   };
 
-  // Glow filter radii based on intensity
-  const glowStdDev = glowIntensity === 'supernova' ? 6 : glowIntensity === 'subtle' ? 2.5 : 4;
+  // Glow filter radii based on intensity setting
+  const glowStdDev = useMemo(() => {
+    switch (settings.glowIntensity) {
+      case 'off':
+        return 0;
+      case 'subtle':
+        return 2.4;
+      case 'supernova':
+        return 8.5;
+      case 'hyperdrive':
+        return 14.5;
+      case 'normal':
+      default:
+        return 4.8;
+    }
+  }, [settings.glowIntensity]);
+
+  const hasGlow = settings.glowIntensity !== 'off';
+
+  // Font weight conversion
+  const fontWeightNum = useMemo(() => {
+    switch (settings.fontWeight) {
+      case 'normal':
+        return 400;
+      case 'medium':
+        return 500;
+      case 'semibold':
+        return 600;
+      case 'black':
+        return 900;
+      case 'bold':
+      default:
+        return 700;
+    }
+  }, [settings.fontWeight]);
 
   return (
     <div
       ref={containerRef}
       id="spicetify-constellation-root"
-      className="relative w-full h-full bg-[#0a0a0a] overflow-hidden select-none cursor-grab active:cursor-grabbing font-sans"
+      className="relative w-full h-full overflow-hidden select-none cursor-grab active:cursor-grabbing transition-colors duration-300"
+      style={{ backgroundColor: settings.bgColor, fontFamily: fontInfo.css }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -228,41 +410,54 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
         xmlns="http://www.w3.org/2000/svg"
       >
         <defs>
-          <filter id="lime-glow" x="-60%" y="-60%" width="220%" height="220%">
+          {/* Dynamic Celestial Primary Glow Filter */}
+          <filter id="celestial-glow" x="-80%" y="-80%" width="260%" height="260%">
             <feGaussianBlur stdDeviation={glowStdDev} result="coloredBlur" />
             <feMerge>
               <feMergeNode in="coloredBlur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          <filter id="super-glow" x="-100%" y="-100%" width="300%" height="300%">
+
+          {/* Super Bloom Aura Filter */}
+          <filter id="super-glow" x="-120%" y="-120%" width="340%" height="340%">
             <feGaussianBlur stdDeviation={glowStdDev * 1.8} result="superBlur" />
             <feMerge>
               <feMergeNode in="superBlur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          <filter id="word-glow" x="-30%" y="-30%" width="160%" height="160%">
-            <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#d4ff3a" floodOpacity="0.8" />
+
+          {/* Word Glow DropShadow Filter */}
+          <filter id="word-glow" x="-40%" y="-40%" width="180%" height="180%">
+            <feDropShadow
+              dx="0"
+              dy="0"
+              stdDeviation={glowStdDev * 0.8}
+              floodColor={settings.glowColor}
+              floodOpacity={hasGlow ? '0.9' : '0'}
+            />
           </filter>
+
           <radialGradient id="nebula-haze" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#d4ff3a" stopOpacity="0.04" />
-            <stop offset="70%" stopColor="#0a0a0a" stopOpacity="0" />
+            <stop offset="0%" stopColor={settings.primaryColor} stopOpacity="0.06" />
+            <stop offset="70%" stopColor={settings.bgColor} stopOpacity="0" />
           </radialGradient>
-          <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
-            <stop offset="65%" stopColor="#0a0a0a" stopOpacity="0" />
-            <stop offset="100%" stopColor="#0a0a0a" stopOpacity="0.85" />
+
+          <radialGradient id="space-vignette" cx="50%" cy="50%" r="50%">
+            <stop offset="65%" stopColor={settings.bgColor} stopOpacity="0" />
+            <stop offset="100%" stopColor={settings.bgColor} stopOpacity="0.88" />
           </radialGradient>
         </defs>
 
         {/* Dynamic Transformed Universe Group */}
         <g id="camera-viewport-group">
-          {/* Subtle Nebula clouds in background */}
-          {activeNode && (
+          {/* Subtle Dynamic Nebula clouds in background */}
+          {circlePos && (
             <circle
-              cx={activeNode.x}
-              cy={activeNode.y}
-              r="400"
+              cx={circlePos.x}
+              cy={circlePos.y}
+              r="440"
               fill="url(#nebula-haze)"
               pointerEvents="none"
             />
@@ -279,7 +474,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                   cx={star.x}
                   cy={star.y}
                   r={star.r}
-                  fill="#d4ff3a"
+                  fill={settings.primaryColor}
                   opacity={op.toFixed(3)}
                 />
               );
@@ -296,9 +491,9 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                 currentTimeMs >= node.prevNode.startTime && currentTimeMs < node.endTime;
               const lineDistFromActive = Math.abs(node.lineIndex - activeLineIdx);
 
-              let lineOpacity = 0.16;
-              let strokeColor = 'rgba(212, 255, 58, 0.18)';
-              let strokeWidth = 1.2;
+              let lineOpacity = 0.15;
+              let strokeColor = `${settings.primaryColor}26`;
+              let strokeWidth = 1.1;
 
               if (node.lineIndex < activeLineIdx - 2) {
                 // Fade out older lines
@@ -306,11 +501,11 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                 lineOpacity = Math.max(0.02, 0.14 - age * 0.04);
               } else if (isActiveLine) {
                 lineOpacity = 0.95;
-                strokeColor = '#d4ff3a';
-                strokeWidth = 2.2;
+                strokeColor = settings.primaryColor;
+                strokeWidth = 2.4;
               } else if (isPast) {
                 lineOpacity = Math.max(0.25, 0.7 - lineDistFromActive * 0.18);
-                strokeColor = 'rgba(212, 255, 58, 0.85)';
+                strokeColor = `${settings.pastColor}cc`;
                 strokeWidth = 1.4;
               }
 
@@ -325,121 +520,249 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                   strokeWidth={strokeWidth}
                   strokeOpacity={lineOpacity}
                   strokeLinecap="round"
-                  filter={isActiveLine ? 'url(#lime-glow)' : undefined}
+                  filter={isActiveLine && hasGlow ? 'url(#celestial-glow)' : undefined}
                 />
               );
             })}
           </g>
 
+          {/* Linear Progress Trail Line: Traces path linearly between words */}
+          {settings.showProgressTrail && (
+            <line
+              ref={progressLineRef}
+              stroke={settings.primaryColor}
+              strokeWidth="2.8"
+              strokeOpacity="0.95"
+              strokeLinecap="round"
+              filter={hasGlow ? 'url(#celestial-glow)' : undefined}
+              pointerEvents="none"
+              style={{ display: 'none' }}
+            />
+          )}
+
+          {/* ACTIVE CELESTIAL BEACON / MOVING CIRCLE (Glides 100% linearly with time) */}
+          <g
+            id="active-celestial-beacon"
+            ref={beaconGroupRef}
+            pointerEvents="none"
+            style={{ display: 'none' }}
+          >
+            {/* 1. Target Reticle Style */}
+            {settings.beaconStyle === 'reticle' && (
+              <>
+                <circle
+                  r="18"
+                  fill="none"
+                  stroke={settings.primaryColor}
+                  strokeWidth="1.6"
+                  strokeOpacity="0.85"
+                  filter={hasGlow ? 'url(#celestial-glow)' : undefined}
+                  className="animate-ping"
+                />
+                <circle
+                  r="23"
+                  fill="none"
+                  stroke={settings.primaryColor}
+                  strokeWidth="1"
+                  strokeOpacity="0.35"
+                />
+                <circle
+                  r="5.5"
+                  fill={settings.primaryColor}
+                  filter={hasGlow ? 'url(#celestial-glow)' : undefined}
+                />
+                <line
+                  x1="-14"
+                  y1="0"
+                  x2="14"
+                  y2="0"
+                  stroke={settings.primaryColor}
+                  strokeWidth="1.4"
+                  strokeOpacity="0.9"
+                  filter={hasGlow ? 'url(#celestial-glow)' : undefined}
+                />
+                <line
+                  x1="0"
+                  y1="-14"
+                  x2="0"
+                  y2="14"
+                  stroke={settings.primaryColor}
+                  strokeWidth="1.4"
+                  strokeOpacity="0.9"
+                  filter={hasGlow ? 'url(#celestial-glow)' : undefined}
+                />
+              </>
+            )}
+
+            {/* 2. Radiant Orb Style */}
+            {settings.beaconStyle === 'orb' && (
+              <>
+                <circle
+                  r="22"
+                  fill={settings.glowColor}
+                  fillOpacity="0.25"
+                  filter={hasGlow ? 'url(#super-glow)' : undefined}
+                />
+                <circle
+                  r="14"
+                  fill="none"
+                  stroke={settings.primaryColor}
+                  strokeWidth="2"
+                  strokeOpacity="0.9"
+                  filter={hasGlow ? 'url(#celestial-glow)' : undefined}
+                  className="animate-pulse"
+                />
+                <circle
+                  r="7.5"
+                  fill={settings.primaryColor}
+                  filter={hasGlow ? 'url(#celestial-glow)' : undefined}
+                />
+                <circle r="2.5" fill="#ffffff" />
+              </>
+            )}
+
+            {/* 3. Pulsing Ring Style */}
+            {settings.beaconStyle === 'ring' && (
+              <>
+                <circle
+                  r="16"
+                  fill="none"
+                  stroke={settings.primaryColor}
+                  strokeWidth="2.5"
+                  strokeOpacity="0.95"
+                  filter={hasGlow ? 'url(#celestial-glow)' : undefined}
+                  className="animate-pulse"
+                />
+                <circle
+                  r="24"
+                  fill="none"
+                  stroke={settings.primaryColor}
+                  strokeWidth="1"
+                  strokeOpacity="0.25"
+                />
+                <circle r="4" fill={settings.primaryColor} />
+              </>
+            )}
+
+            {/* 4. Minimal Star Style */}
+            {settings.beaconStyle === 'minimal' && (
+              <>
+                <circle
+                  r="6.5"
+                  fill={settings.primaryColor}
+                  filter={hasGlow ? 'url(#celestial-glow)' : undefined}
+                />
+                <circle
+                  r="11"
+                  fill="none"
+                  stroke={settings.primaryColor}
+                  strokeWidth="1"
+                  strokeOpacity="0.5"
+                />
+              </>
+            )}
+          </g>
+
           {/* Constellation Word Nodes */}
           <g className="constellation-nodes">
-            {nodes.map((node) => {
-              const isWordActive = activeNode?.id === node.id;
+            {nodes.map((node, nIdx) => {
+              const isWordActive = circlePos?.activeIndex === nIdx;
               const isWordPast = currentTimeMs >= node.endTime;
 
-              let starRadius = 2.5;
+              let starRadius = 2.4;
               let starOpacity = 0.35;
-              let starFill = '#7d8a60';
+              let starFill = `${settings.primaryColor}40`;
               let textOpacity = 0.4;
-              let textColor = '#9ca3af';
-              let fontWeight = 400;
+              let textColor = settings.futureColor;
+              let wordFontSize = settings.fontSize * 0.9;
+              let currentWeight = 400;
               let filterAttr: string | undefined = undefined;
 
               if (isWordActive) {
                 starRadius = 6.8;
                 starOpacity = 1.0;
-                starFill = '#d4ff3a';
+                starFill = settings.primaryColor;
                 textOpacity = 1.0;
                 textColor = '#ffffff';
-                fontWeight = 700;
-                filterAttr = 'url(#lime-glow)';
+                wordFontSize = settings.fontSize * 1.25;
+                currentWeight = fontWeightNum;
+                filterAttr = hasGlow ? 'url(#celestial-glow)' : undefined;
               } else if (node.lineIndex === activeLineIdx) {
                 if (isWordPast) {
                   starRadius = 4.0;
                   starOpacity = 0.9;
-                  starFill = '#d4ff3a';
+                  starFill = settings.pastColor;
                   textOpacity = 0.95;
-                  textColor = '#eaff96';
-                  fontWeight = 600;
+                  textColor = settings.pastColor;
+                  wordFontSize = settings.fontSize;
+                  currentWeight = Math.max(500, fontWeightNum - 100);
                 } else {
                   // Upcoming words in current line
                   starRadius = 3.2;
                   starOpacity = 0.65;
-                  starFill = '#a4c442';
+                  starFill = `${settings.primaryColor}99`;
                   textOpacity = 0.7;
-                  textColor = '#c9d998';
+                  textColor = `${settings.primaryColor}cc`;
+                  wordFontSize = settings.fontSize * 0.95;
+                  currentWeight = 500;
                 }
               } else if (node.lineIndex < activeLineIdx) {
                 // Older lines fading out
                 const age = activeLineIdx - node.lineIndex;
                 starOpacity = Math.max(0.04, 0.35 - age * 0.1);
                 textOpacity = Math.max(0.04, 0.4 - age * 0.12);
-                starFill = '#6b7d4c';
-                textColor = '#869677';
+                starFill = `${settings.pastColor}40`;
+                textColor = `${settings.pastColor}88`;
                 starRadius = 2.2;
               } else {
                 // Future upcoming lines
                 const distance = node.lineIndex - activeLineIdx;
                 starOpacity = Math.max(0.12, 0.35 - distance * 0.08);
                 textOpacity = Math.max(0.12, 0.4 - distance * 0.08);
-                starFill = '#54613c';
-                textColor = '#6b7280';
+                starFill = `${settings.futureColor}40`;
+                textColor = settings.futureColor;
                 starRadius = 2.0;
+              }
+
+              // Popped look for stream ending words
+              const isLineEnd = !!node.isLineEnd;
+              if (isLineEnd) {
+                if (isWordActive) {
+                  starRadius = 8.5;
+                  wordFontSize = settings.fontSize * 1.35;
+                  currentWeight = 800;
+                } else if (node.lineIndex <= activeLineIdx) {
+                  starRadius = Math.max(starRadius, 4.8);
+                  starOpacity = Math.max(starOpacity, 0.85);
+                  textOpacity = Math.max(textOpacity, 0.85);
+                  wordFontSize = Math.max(wordFontSize, settings.fontSize * 1.05);
+                  currentWeight = Math.max(currentWeight, 700);
+                  starFill = settings.primaryColor;
+                  textColor = settings.primaryColor;
+                }
               }
 
               return (
                 <g
                   key={node.id}
-                  className="cursor-pointer transition-transform duration-150 hover:scale-125"
+                  className={`cursor-pointer transition-transform duration-150 hover:scale-125 ${isLineEnd ? 'star-node-line-end' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onWordClick?.(node.startTime);
                   }}
                 >
-                  {/* Active radiant halo / celestial beacon */}
-                  {isWordActive && (
-                    <>
-                      <circle
-                        cx={node.x}
-                        cy={node.y}
-                        r="16"
-                        fill="none"
-                        stroke="#d4ff3a"
-                        strokeWidth="1.5"
-                        strokeOpacity="0.75"
-                        filter="url(#lime-glow)"
-                        className="animate-ping"
-                      />
-                      <circle
-                        cx={node.x}
-                        cy={node.y}
-                        r="22"
-                        fill="none"
-                        stroke="#d4ff3a"
-                        strokeWidth="1"
-                        strokeOpacity="0.3"
-                      />
-                      <line
-                        x1={node.x - 14}
-                        y1={node.y}
-                        x2={node.x + 14}
-                        y2={node.y}
-                        stroke="#d4ff3a"
-                        strokeWidth="1.5"
-                        strokeOpacity="0.9"
-                        filter="url(#lime-glow)"
-                      />
-                      <line
-                        x1={node.x}
-                        y1={node.y - 14}
-                        x2={node.x}
-                        y2={node.y + 14}
-                        stroke="#d4ff3a"
-                        strokeWidth="1.5"
-                        strokeOpacity="0.9"
-                        filter="url(#lime-glow)"
-                      />
-                    </>
+                  {/* Popped accent ring for stream-ending word */}
+                  {isLineEnd && (
+                    <circle
+                      cx={node.x}
+                      cy={node.y}
+                      r={isWordActive ? 15 : 10}
+                      fill="none"
+                      stroke={settings.primaryColor}
+                      strokeWidth={isWordActive ? 2 : 1.2}
+                      strokeDasharray={isWordActive ? undefined : '2 2'}
+                      opacity={isWordActive ? 1 : 0.45}
+                    />
                   )}
 
                   {/* Star point */}
@@ -458,12 +781,16 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                     y={node.y + (isWordActive ? 22 : 18)}
                     textAnchor="middle"
                     fill={textColor}
-                    fontSize={isWordActive ? 16 : 13}
-                    fontWeight={fontWeight}
-                    letterSpacing="0.04em"
+                    fontSize={wordFontSize}
+                    fontWeight={currentWeight}
+                    letterSpacing={`${settings.letterSpacing}em`}
                     opacity={textOpacity}
-                    filter={isWordActive ? 'url(#word-glow)' : undefined}
+                    filter={isWordActive && hasGlow ? 'url(#word-glow)' : undefined}
                     className="select-none"
+                    style={{
+                      textTransform: settings.textTransform,
+                      fontFamily: fontInfo.css,
+                    }}
                   >
                     {node.text}
                   </text>
@@ -474,28 +801,30 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
         </g>
 
         {/* Outer Vignette gradient overlay */}
-        <rect width="100%" height="100%" fill="url(#vignette)" pointerEvents="none" />
+        <rect width="100%" height="100%" fill="url(#space-vignette)" pointerEvents="none" />
       </svg>
 
       {/* Floating Canvas Controls (Top Right) */}
       <div className="absolute top-4 right-4 flex items-center gap-2 z-20 pointer-events-auto">
         <button
           onClick={handleRecenter}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all backdrop-blur-md border ${
-            autoFollow
-              ? 'bg-[#d4ff3a]/20 border-[#d4ff3a] text-[#d4ff3a] shadow-[0_0_12px_rgba(212,255,58,0.25)]'
-              : 'bg-neutral-900/90 border-neutral-700 text-neutral-300 hover:text-white'
-          }`}
-          title="Keep camera focused on active lyrics"
+          className="px-3 py-1.5 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all backdrop-blur-md border shadow-sm"
+          style={{
+            backgroundColor: autoFollow ? `${settings.primaryColor}22` : '#18181bdf',
+            borderColor: autoFollow ? settings.primaryColor : '#3f3f46',
+            color: autoFollow ? settings.primaryColor : '#d4d4d8',
+            boxShadow: autoFollow ? `0 0 12px ${settings.glowColor}40` : undefined,
+          }}
+          title="Keep camera focused on linearly moving lyrics"
         >
           <Navigation className={`w-3.5 h-3.5 ${autoFollow ? 'rotate-45' : ''}`} />
-          {autoFollow ? 'Tracking Active Lyrics' : 'Recenter Camera'}
+          {autoFollow ? 'Tracking Synced Lyrics' : 'Recenter Camera'}
         </button>
 
         <div className="flex items-center bg-neutral-900/90 backdrop-blur-md border border-neutral-700 rounded-full p-0.5">
           <button
             onClick={() => setZoomLevel((z) => Math.min(2.2, z + 0.15))}
-            className="p-1.5 text-neutral-300 hover:text-[#d4ff3a] rounded-full transition-colors"
+            className="p-1.5 text-neutral-300 hover:text-white rounded-full transition-colors"
             title="Zoom In"
           >
             <ZoomIn className="w-3.5 h-3.5" />
@@ -505,7 +834,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
           </span>
           <button
             onClick={() => setZoomLevel((z) => Math.max(0.45, z - 0.15))}
-            className="p-1.5 text-neutral-300 hover:text-[#d4ff3a] rounded-full transition-colors"
+            className="p-1.5 text-neutral-300 hover:text-white rounded-full transition-colors"
             title="Zoom Out"
           >
             <ZoomOut className="w-3.5 h-3.5" />
@@ -515,14 +844,24 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
 
       {/* Interactive Helper Hint (Top Left) */}
       <div className="absolute top-4 left-4 hidden md:flex items-center gap-2 px-3 py-1.5 bg-neutral-900/80 backdrop-blur-md border border-neutral-800 rounded-full text-[11px] text-neutral-400 pointer-events-none z-20">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#d4ff3a]" />
-        <span>Click any star to seek • Drag space to pan</span>
+        <span
+          className="w-1.5 h-1.5 rounded-full shadow-sm"
+          style={{ backgroundColor: settings.primaryColor }}
+        />
+        <span>Click star to seek • Smooth linear sync • Drag to pan</span>
       </div>
 
       {/* Status Overlay: Loading / Error / Empty state */}
       {isLoadingLyrics && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-none text-center">
-          <div className="w-10 h-10 border-2 border-[#d4ff3a]/20 border-t-[#d4ff3a] rounded-full animate-spin shadow-[0_0_16px_rgba(212,255,58,0.4)]" />
+          <div
+            className="w-10 h-10 border-2 rounded-full animate-spin shadow-lg"
+            style={{
+              borderColor: `${settings.primaryColor}33`,
+              borderTopColor: settings.primaryColor,
+              boxShadow: `0 0 16px ${settings.glowColor}55`,
+            }}
+          />
           <p className="text-sm font-medium text-neutral-300 tracking-wide">
             Mapping celestial lyrics from LRCLIB...
           </p>
@@ -546,7 +885,13 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
       )}
 
       {/* Track Info & Interactive Player Pill (Floating on Canvas) */}
-      <div className="constellation-bottom-bar absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-2.5 bg-neutral-950/90 backdrop-blur-xl border border-[#d4ff3a]/40 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.8),0_0_20px_rgba(212,255,58,0.18)] z-20 pointer-events-auto max-w-[90%] transition-all hover:border-[#d4ff3a]/70">
+      <div
+        className="constellation-bottom-bar absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-2.5 bg-neutral-950/90 backdrop-blur-xl border rounded-full shadow-2xl z-20 pointer-events-auto max-w-[90%] transition-all"
+        style={{
+          borderColor: `${settings.primaryColor}55`,
+          boxShadow: `0 8px 32px rgba(0,0,0,0.8), 0 0 16px ${settings.glowColor}25`,
+        }}
+      >
         {/* On-Canvas Play/Pause Button */}
         {onTogglePlay && (
           <button
@@ -554,7 +899,11 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
               e.stopPropagation();
               onTogglePlay();
             }}
-            className="w-8 h-8 rounded-full bg-[#d4ff3a] text-black flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-[0_0_12px_rgba(212,255,58,0.4)] shrink-0"
+            className="w-8 h-8 rounded-full text-black flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-md shrink-0 font-bold"
+            style={{
+              backgroundColor: settings.primaryColor,
+              boxShadow: `0 0 12px ${settings.glowColor}66`,
+            }}
             title={isPlaying ? 'Pause' : 'Play'}
           >
             {isPlaying ? (
@@ -566,12 +915,16 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
         )}
 
         {/* Track Title and Artist */}
-        <div className="flex flex-col overflow-hidden max-w-[220px] sm:max-w-xs">
+        <div className="flex flex-col overflow-hidden max-w-[200px] sm:max-w-xs">
           <div className="text-xs sm:text-sm font-semibold text-white truncate flex items-center gap-1.5">
             <span
-              className={`inline-block w-2 h-2 rounded-full bg-[#d4ff3a] shrink-0 shadow-[0_0_6px_#d4ff3a] ${
+              className={`inline-block w-2 h-2 rounded-full shrink-0 ${
                 isPlaying ? 'animate-pulse' : 'opacity-60'
               }`}
+              style={{
+                backgroundColor: settings.primaryColor,
+                boxShadow: `0 0 6px ${settings.glowColor}`,
+              }}
             />
             <span className="truncate">{trackTitle || 'Waiting for playback'}</span>
           </div>
@@ -601,10 +954,25 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
               e.stopPropagation();
               onOpenSearch();
             }}
-            className="p-1.5 text-neutral-400 hover:text-[#d4ff3a] rounded-full hover:bg-neutral-800 transition-colors"
+            className="p-1.5 text-neutral-400 hover:text-white rounded-full hover:bg-neutral-800 transition-colors"
             title="Search Song Lyrics"
           >
             <Search className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* Settings Button Shortcut */}
+        {onOpenSettings && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenSettings();
+            }}
+            className="p-1.5 rounded-full hover:bg-neutral-800 transition-colors"
+            style={{ color: settings.primaryColor }}
+            title="Open Constellation Visual Settings"
+          >
+            <Sliders className="w-4 h-4" />
           </button>
         )}
       </div>

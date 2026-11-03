@@ -74,10 +74,13 @@ export function buildConstellationLayout(
       lastX = bestX;
       lastY = bestY;
 
+      const isLineEnd = wIdx === line.words.length - 1;
       const node: ConstellationNode = {
         id: `node-${lIdx}-${wIdx}`,
         lineIndex: lIdx,
         wordIndex: wIdx,
+        isLineEnd,
+        isLastWordInLine: isLineEnd,
         text: wordObj.text,
         startTime: wordObj.startTime,
         endTime: wordObj.endTime,

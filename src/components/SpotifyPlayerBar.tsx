@@ -4,12 +4,9 @@ import {
   Pause,
   SkipBack,
   SkipForward,
-  Volume2,
-  VolumeX,
   Search,
   Terminal,
   ListMusic,
-  Sparkles,
 } from 'lucide-react';
 import { TrackInfo } from '../types';
 
@@ -26,6 +23,8 @@ interface SpotifyPlayerBarProps {
   onOpenSearch: () => void;
   onOpenExport: () => void;
   isSpicetifyNative: boolean;
+  accentColor?: string;
+  glowColor?: string;
 }
 
 function formatTime(ms: number): string {
@@ -47,7 +46,8 @@ export const SpotifyPlayerBar: React.FC<SpotifyPlayerBarProps> = ({
   onSelectTrack,
   onOpenSearch,
   onOpenExport,
-  isSpicetifyNative,
+  accentColor = '#d4ff3a',
+  glowColor = '#d4ff3a',
 }) => {
   const progressBarRef = useRef<HTMLDivElement>(null);
 
@@ -73,11 +73,13 @@ export const SpotifyPlayerBar: React.FC<SpotifyPlayerBarProps> = ({
             className="w-12 h-12 rounded-lg shadow-md object-cover border border-neutral-700/60"
           />
         ) : (
-          <div className="w-12 h-12 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center text-[#d4ff3a]">
+          <div
+            className="w-12 h-12 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center transition-colors"
+            style={{ color: accentColor }}
+          >
             <ListMusic className="w-6 h-6" />
           </div>
         )}
-
         <div className="flex flex-col overflow-hidden">
           <span className="text-sm font-semibold text-white truncate hover:underline cursor-pointer">
             {currentTrack.title || 'No Track'}
@@ -99,10 +101,14 @@ export const SpotifyPlayerBar: React.FC<SpotifyPlayerBarProps> = ({
             <SkipBack className="w-5 h-5 fill-current" />
           </button>
 
-          {/* High-visibility Lime Play/Pause Button */}
+          {/* High-visibility Dynamic Play/Pause Button */}
           <button
             onClick={onTogglePlay}
-            className="w-10 h-10 rounded-full bg-[#d4ff3a] text-black flex items-center justify-center hover:scale-108 active:scale-95 transition-all shadow-[0_0_16px_rgba(212,255,58,0.45)] hover:bg-[#c2ed2c]"
+            className="w-10 h-10 rounded-full text-black flex items-center justify-center hover:scale-108 active:scale-95 transition-all shadow-md font-bold"
+            style={{
+              backgroundColor: accentColor,
+              boxShadow: `0 0 16px ${glowColor}66`,
+            }}
             title={isPlaying ? 'Pause' : 'Play'}
           >
             {isPlaying ? (
@@ -134,12 +140,16 @@ export const SpotifyPlayerBar: React.FC<SpotifyPlayerBarProps> = ({
           >
             {/* Active filled bar */}
             <div
-              className="absolute left-0 top-0 bottom-0 bg-[#d4ff3a] rounded-full transition-all duration-75 shadow-[0_0_8px_rgba(212,255,58,0.5)]"
-              style={{ width: `${progressPercent}%` }}
+              className="absolute left-0 top-0 bottom-0 rounded-full transition-all duration-75 shadow-sm"
+              style={{
+                width: `${progressPercent}%`,
+                backgroundColor: accentColor,
+                boxShadow: `0 0 8px ${glowColor}80`,
+              }}
             />
             {/* Scrubber thumb */}
             <div
-              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white group-hover:bg-[#d4ff3a] rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
               style={{ left: `${progressPercent}%` }}
             />
           </div>
@@ -160,7 +170,7 @@ export const SpotifyPlayerBar: React.FC<SpotifyPlayerBarProps> = ({
               const selected = presetTracks.find((t) => t.title === e.target.value);
               if (selected) onSelectTrack(selected);
             }}
-            className="bg-neutral-800 text-xs text-neutral-200 border border-neutral-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#d4ff3a] cursor-pointer hover:bg-neutral-750 transition-colors"
+            className="bg-neutral-800 text-xs text-neutral-200 border border-neutral-700 rounded-lg px-2.5 py-1.5 focus:outline-none cursor-pointer hover:bg-neutral-750 transition-colors"
           >
             {presetTracks.map((t) => (
               <option key={t.uri} value={t.title}>
@@ -176,14 +186,18 @@ export const SpotifyPlayerBar: React.FC<SpotifyPlayerBarProps> = ({
           className="px-3 py-1.5 text-neutral-200 hover:text-white bg-neutral-800 hover:bg-neutral-750 border border-neutral-700 rounded-lg flex items-center gap-1.5 text-xs font-medium transition-colors"
           title="Search any song on LRCLIB"
         >
-          <Search className="w-3.5 h-3.5 text-[#d4ff3a]" />
+          <Search className="w-3.5 h-3.5" style={{ color: accentColor }} />
           <span className="hidden sm:inline">Search Songs</span>
         </button>
 
         {/* Spicetify Install / Guide Button */}
         <button
           onClick={onOpenExport}
-          className="px-3 py-1.5 bg-[#d4ff3a] text-black hover:bg-[#c2ed2c] rounded-lg flex items-center gap-1.5 text-xs font-bold transition-all shadow-[0_0_14px_rgba(212,255,58,0.3)] hover:scale-105 active:scale-95"
+          className="px-3 py-1.5 text-black rounded-lg flex items-center gap-1.5 text-xs font-bold transition-all shadow-md hover:scale-105 active:scale-95"
+          style={{
+            backgroundColor: accentColor,
+            boxShadow: `0 0 14px ${glowColor}50`,
+          }}
           title="Install in Spotify / Spicetify"
         >
           <Terminal className="w-3.5 h-3.5 text-black" />

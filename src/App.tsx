@@ -3,9 +3,15 @@ import { ConstellationCanvas } from './components/ConstellationCanvas';
 import { SpotifyPlayerBar } from './components/SpotifyPlayerBar';
 import { SpicetifyExportModal } from './components/SpicetifyExportModal';
 import { TrackSearchModal } from './components/TrackSearchModal';
+import { SettingsModal } from './components/SettingsModal';
 import { parseLrc } from './utils/lrcParser';
 import { fetchLyricsFromLRCLIB, PRESET_TRACKS } from './utils/lrclib';
-import { ParsedLine, TrackInfo } from './types';
+import {
+  ParsedLine,
+  TrackInfo,
+  ConstellationSettings,
+  DEFAULT_SETTINGS,
+} from './types';
 import {
   Sparkles,
   Maximize2,
@@ -14,10 +20,7 @@ import {
   Play,
   Pause,
   Search,
-  ChevronDown,
-  Music,
-  Download,
-  Info,
+  Sliders,
 } from 'lucide-react';
 import manifestRaw from '../CustomApps/constellation/manifest.json?raw';
 import indexJsRaw from '../CustomApps/constellation/index.js?raw';
@@ -36,6 +39,10 @@ declare global {
         pause?: () => void;
         seek?: (ms: number) => void;
       };
+      LocalStorage?: {
+        get: (key: string) => string | null;
+        set: (key: string, value: string) => void;
+      };
     };
   }
 }
@@ -49,15 +56,48 @@ export default function App() {
   const [isLoadingLyrics, setIsLoadingLyrics] = useState(false);
   const [errorLyrics, setErrorLyrics] = useState<string | null>(null);
 
+  // Settings state (persisted to localStorage)
+  const [settings, setSettings] = useState<ConstellationSettings>(() => {
+    try {
+      const saved = localStorage.getItem('constellation_user_settings');
+      if (saved) {
+        return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+      }
+    } catch (e) {
+      // ignore
+    }
+    return DEFAULT_SETTINGS;
+  });
+
   // Modals & UI controls
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [glowIntensity, setGlowIntensity] = useState<'subtle' | 'normal' | 'supernova'>('normal');
 
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const animFrameRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number>(performance.now());
+  const smoothedProgressRef = useRef<number>(0);
+  const lastReportedProgressRef = useRef<number>(0);
+
+  const handleUpdateSettings = (newSettings: ConstellationSettings) => {
+    setSettings(newSettings);
+    try {
+      localStorage.setItem('constellation_user_settings', JSON.stringify(newSettings));
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const handleResetSettings = () => {
+    setSettings(DEFAULT_SETTINGS);
+    try {
+      localStorage.setItem('constellation_user_settings', JSON.stringify(DEFAULT_SETTINGS));
+    } catch (e) {
+      // ignore
+    }
+  };
 
   // Check if running inside Spicetify
   useEffect(() => {
@@ -154,17 +194,30 @@ export default function App() {
     };
   }, [currentTrack]);
 
-  // Playback Loop
+  // High-precision smooth 60/120 FPS audio progress loop
   useEffect(() => {
     const loop = (now: number) => {
       animFrameRef.current = requestAnimationFrame(loop);
 
+      const delta = now - lastTimestampRef.current;
+      lastTimestampRef.current = now;
+
       if (isSpicetifyNative && window.Spicetify?.Player) {
         try {
-          const progress = window.Spicetify.Player.getProgress() || 0;
-          setCurrentTimeMs(progress);
+          const raw = window.Spicetify.Player.getProgress() || 0;
           const playing = window.Spicetify.Player.isPlaying();
           setIsPlaying(playing);
+
+          if (Math.abs(raw - lastReportedProgressRef.current) > 250) {
+            // Scrub or seek occurred
+            smoothedProgressRef.current = raw;
+            lastReportedProgressRef.current = raw;
+          } else if (playing) {
+            // Smooth linear continuous advance with gentle clock drift correction
+            smoothedProgressRef.current += delta;
+            smoothedProgressRef.current += (raw - smoothedProgressRef.current) * 0.08;
+          }
+          setCurrentTimeMs(smoothedProgressRef.current);
         } catch (e) {
           // ignore
         }
@@ -172,9 +225,6 @@ export default function App() {
       }
 
       // Simulation mode
-      const delta = now - lastTimestampRef.current;
-      lastTimestampRef.current = now;
-
       if (isPlaying) {
         setCurrentTimeMs((prev) => {
           const duration = currentTrack.durationMs || 180000;
@@ -210,6 +260,8 @@ export default function App() {
       if (isSpicetifyNative && window.Spicetify?.Player) {
         window.Spicetify.Player.seek?.(ms);
       }
+      smoothedProgressRef.current = ms;
+      lastReportedProgressRef.current = ms;
       setCurrentTimeMs(ms);
     },
     [isSpicetifyNative]
@@ -220,6 +272,7 @@ export default function App() {
     const nextIndex = (currentIndex + 1) % PRESET_TRACKS.length;
     setCurrentTrack(PRESET_TRACKS[nextIndex]);
     setCurrentTimeMs(0);
+    smoothedProgressRef.current = 0;
   }, [currentTrack]);
 
   const handlePrevTrack = useCallback(() => {
@@ -227,6 +280,7 @@ export default function App() {
     const prevIndex = (currentIndex - 1 + PRESET_TRACKS.length) % PRESET_TRACKS.length;
     setCurrentTrack(PRESET_TRACKS[prevIndex]);
     setCurrentTimeMs(0);
+    smoothedProgressRef.current = 0;
   }, [currentTrack]);
 
   const toggleFullscreen = () => {
@@ -243,19 +297,35 @@ export default function App() {
   return (
     <div
       ref={mainContainerRef}
-      className="w-screen h-screen flex flex-col bg-[#0a0a0a] text-white overflow-hidden select-none"
+      className="w-screen h-screen flex flex-col text-white overflow-hidden select-none transition-colors duration-300"
+      style={{ backgroundColor: settings.bgColor }}
     >
       {/* Top Bar / App Header */}
       <header className="h-16 bg-[#0a0a0a]/95 backdrop-blur-md border-b border-neutral-800/80 px-4 md:px-6 flex items-center justify-between z-30 shrink-0 gap-3">
         {/* Left: Branding & Tag */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#d4ff3a]/15 text-[#d4ff3a] flex items-center justify-center border border-[#d4ff3a]/40 shadow-[0_0_14px_rgba(212,255,58,0.3)]">
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center border shadow-md transition-colors"
+            style={{
+              backgroundColor: `${settings.primaryColor}1a`,
+              color: settings.primaryColor,
+              borderColor: `${settings.primaryColor}55`,
+              boxShadow: `0 0 14px ${settings.glowColor}33`,
+            }}
+          >
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-bold tracking-wider uppercase text-white">Constellation</h1>
-              <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#d4ff3a]/20 text-[#d4ff3a] font-semibold border border-[#d4ff3a]/30">
+              <span
+                className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full font-semibold border transition-colors"
+                style={{
+                  backgroundColor: `${settings.primaryColor}22`,
+                  color: settings.primaryColor,
+                  borderColor: `${settings.primaryColor}40`,
+                }}
+              >
                 Spicetify App
               </span>
             </div>
@@ -270,13 +340,13 @@ export default function App() {
           {/* Quick Play/Pause Button */}
           <button
             onClick={handleTogglePlay}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-[#d4ff3a] text-white text-xs font-semibold transition-all hover:bg-neutral-800 shadow-md"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-white text-white text-xs font-semibold transition-all hover:bg-neutral-800 shadow-md"
             title={isPlaying ? 'Pause Lyrics' : 'Play Lyrics'}
           >
             {isPlaying ? (
-              <Pause className="w-3.5 h-3.5 fill-current text-[#d4ff3a]" />
+              <Pause className="w-3.5 h-3.5 fill-current" style={{ color: settings.primaryColor }} />
             ) : (
-              <Play className="w-3.5 h-3.5 fill-current text-[#d4ff3a]" />
+              <Play className="w-3.5 h-3.5 fill-current ml-0.5" style={{ color: settings.primaryColor }} />
             )}
             <span className="hidden md:inline">{isPlaying ? 'Pause' : 'Play'}</span>
           </button>
@@ -290,9 +360,10 @@ export default function App() {
                 if (selected) {
                   setCurrentTrack(selected);
                   setCurrentTimeMs(0);
+                  smoothedProgressRef.current = 0;
                 }
               }}
-              className="bg-neutral-900 text-xs font-medium text-neutral-200 border border-neutral-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#d4ff3a] cursor-pointer hover:bg-neutral-800 transition-colors"
+              className="bg-neutral-900 text-xs font-medium text-neutral-200 border border-neutral-700 rounded-lg px-2.5 py-1.5 focus:outline-none cursor-pointer hover:bg-neutral-800 transition-colors"
             >
               {PRESET_TRACKS.map((t) => (
                 <option key={t.uri} value={t.title}>
@@ -305,63 +376,47 @@ export default function App() {
           {/* Search Songs Button */}
           <button
             onClick={() => setIsSearchOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-[#d4ff3a] text-neutral-300 hover:text-white text-xs font-medium transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-white text-neutral-300 hover:text-white text-xs font-medium transition-colors"
             title="Search Any Song on LRCLIB"
           >
-            <Search className="w-3.5 h-3.5 text-[#d4ff3a]" />
+            <Search className="w-3.5 h-3.5" style={{ color: settings.primaryColor }} />
             <span className="hidden lg:inline">Search Songs</span>
           </button>
         </div>
 
-        {/* Right: Big "How to Use" Button & Fullscreen */}
+        {/* Right: Settings, Export, Fullscreen */}
         <div className="flex items-center gap-2">
+          {/* Visual Settings Button (Colors, Font, Glow) */}
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-700 hover:border-white text-white text-xs font-semibold transition-all hover:bg-neutral-850 shadow-md group"
+            style={{ borderColor: `${settings.primaryColor}55` }}
+            title="Customize colors, font family & size, glow intensity, and beacon styles"
+          >
+            <Sliders
+              className="w-4 h-4 transition-transform group-hover:rotate-45"
+              style={{ color: settings.primaryColor }}
+            />
+            <span className="hidden sm:inline">Settings</span>
+          </button>
+
           {/* Big Vibrant "How to Use / Install to Spotify" Button */}
           <button
             onClick={() => setIsExportOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-[#d4ff3a] text-black hover:bg-[#c2ed2c] text-xs font-bold flex items-center gap-2 transition-all shadow-[0_0_16px_rgba(212,255,58,0.35)] hover:scale-105 active:scale-95"
+            className="px-3.5 py-2 rounded-xl text-black text-xs font-bold flex items-center gap-2 transition-all shadow-md hover:scale-105 active:scale-95"
+            style={{
+              backgroundColor: settings.primaryColor,
+              boxShadow: `0 0 16px ${settings.glowColor}55`,
+            }}
             title="View Spicetify install instructions and export files"
           >
             <Terminal className="w-4 h-4 text-black" />
-            <span>How to Use / Install</span>
+            <span>How to Use</span>
           </button>
-
-          {/* Glow selector */}
-          <div className="hidden xl:flex items-center bg-neutral-900 border border-neutral-800 rounded-lg p-0.5 text-xs">
-            <button
-              onClick={() => setGlowIntensity('subtle')}
-              className={`px-2 py-1 rounded transition-colors ${
-                glowIntensity === 'subtle'
-                  ? 'bg-neutral-800 text-[#d4ff3a]'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              Soft
-            </button>
-            <button
-              onClick={() => setGlowIntensity('normal')}
-              className={`px-2 py-1 rounded transition-colors ${
-                glowIntensity === 'normal'
-                  ? 'bg-neutral-800 text-[#d4ff3a]'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              Neon
-            </button>
-            <button
-              onClick={() => setGlowIntensity('supernova')}
-              className={`px-2 py-1 rounded transition-colors ${
-                glowIntensity === 'supernova'
-                  ? 'bg-neutral-800 text-[#d4ff3a]'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              Supernova
-            </button>
-          </div>
 
           <button
             onClick={toggleFullscreen}
-            className="p-2 rounded-lg bg-neutral-900 border border-neutral-800 hover:text-[#d4ff3a] text-neutral-400 transition-colors"
+            className="p-2 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white transition-colors"
             title="Toggle Fullscreen"
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -369,8 +424,8 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Celestial Constellation Canvas (min-h-0 so flex column respects height without pushing footer offscreen) */}
-      <main className="flex-1 min-h-0 relative w-full overflow-hidden bg-[#0a0a0a]">
+      {/* Main Celestial Constellation Canvas */}
+      <main className="flex-1 min-h-0 relative w-full overflow-hidden">
         <ConstellationCanvas
           parsedLines={parsedLines}
           currentTimeMs={currentTimeMs}
@@ -380,12 +435,13 @@ export default function App() {
           trackArtist={currentTrack.artist}
           isLoadingLyrics={isLoadingLyrics}
           errorLyrics={errorLyrics}
+          settings={settings}
           onWordClick={(time) => handleSeek(time)}
           onTogglePlay={handleTogglePlay}
           onNextTrack={handleNextTrack}
           onOpenSearch={() => setIsSearchOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenExport={() => setIsExportOpen(true)}
-          glowIntensity={glowIntensity}
         />
       </main>
 
@@ -403,12 +459,24 @@ export default function App() {
           onSelectTrack={(t) => {
             setCurrentTrack(t);
             setCurrentTimeMs(0);
+            smoothedProgressRef.current = 0;
           }}
           onOpenSearch={() => setIsSearchOpen(true)}
           onOpenExport={() => setIsExportOpen(true)}
           isSpicetifyNative={isSpicetifyNative}
+          accentColor={settings.primaryColor}
+          glowColor={settings.glowColor}
         />
       </div>
+
+      {/* Modal: Visual Studio Settings (Colors, Font, Glow) */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={settings}
+        onUpdateSettings={handleUpdateSettings}
+        onResetSettings={handleResetSettings}
+      />
 
       {/* Modal: View Custom App Files & Installation Guide */}
       <SpicetifyExportModal
@@ -425,6 +493,7 @@ export default function App() {
         onSelectResult={(track, lrc) => {
           setCurrentTrack({ ...track, presetLrc: lrc });
           setCurrentTimeMs(0);
+          smoothedProgressRef.current = 0;
           setIsPlaying(true);
         }}
         onCustomLrcSubmit={(title, artist, lrc) => {
@@ -437,6 +506,7 @@ export default function App() {
             presetLrc: lrc,
           });
           setCurrentTimeMs(0);
+          smoothedProgressRef.current = 0;
           setIsPlaying(true);
         }}
       />
