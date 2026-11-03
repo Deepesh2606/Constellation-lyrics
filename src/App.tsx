@@ -4,6 +4,7 @@ import { SpotifyPlayerBar } from './components/SpotifyPlayerBar';
 import { SpicetifyExportModal } from './components/SpicetifyExportModal';
 import { TrackSearchModal } from './components/TrackSearchModal';
 import { SettingsModal } from './components/SettingsModal';
+import { ShowcaseLandingPage } from './components/ShowcaseLandingPage';
 import { parseLrc } from './utils/lrcParser';
 import { fetchLyricsFromLRCLIB, PRESET_TRACKS } from './utils/lrclib';
 import {
@@ -49,6 +50,14 @@ declare global {
 
 export default function App() {
   const [isSpicetifyNative, setIsSpicetifyNative] = useState(false);
+  const [viewMode, setViewMode] = useState<'landing' | 'simulator'>(() => {
+    if (typeof window !== 'undefined') {
+      if (window.Spicetify?.Player || window.location.hash === '#simulator') {
+        return 'simulator';
+      }
+    }
+    return 'landing';
+  });
   const [currentTrack, setCurrentTrack] = useState<TrackInfo>(PRESET_TRACKS[0]);
   const [parsedLines, setParsedLines] = useState<ParsedLine[]>([]);
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
@@ -294,16 +303,28 @@ export default function App() {
     }
   };
 
+  if (viewMode === 'landing') {
+    return <ShowcaseLandingPage onOpenSimulator={() => setViewMode('simulator')} />;
+  }
+
   return (
     <div
       ref={mainContainerRef}
-      className="w-screen h-screen flex flex-col text-white overflow-hidden select-none transition-colors duration-300"
+      className="w-screen h-screen flex flex-col text-white overflow-hidden select-none transition-colors duration-300 relative"
       style={{ backgroundColor: settings.bgColor }}
     >
       {/* Top Bar / App Header */}
       <header className="h-16 bg-[#0a0a0a]/95 backdrop-blur-md border-b border-neutral-800/80 px-4 md:px-6 flex items-center justify-between z-30 shrink-0 gap-3">
         {/* Left: Branding & Tag */}
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setViewMode('landing')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.15] text-xs font-semibold text-white transition-all shadow"
+            title="Return to Showcase Website"
+          >
+            <span className="text-[#d4ff3a]">✦</span>
+            <span>Showcase Site</span>
+          </button>
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center border shadow-md transition-colors"
             style={{

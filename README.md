@@ -97,6 +97,22 @@ Open Spotify and click **Constellation** in the left navigation sidebar!
 
 ---
 
+## 🌐 Showcase Landing Page & Live Simulator
+
+Constellation includes a luxury dark/ambient showcase website inspired by [`trylumn.xyz`](https://www.trylumn.xyz). It features a Space Gray MacBook Pro mockup with seamless video playback, interactive live canvas fallback, bento feature grid, and instant 1-click install guides.
+
+### Adding Your Screen Recording
+1. Screenrecord Spotify running Constellation (e.g., using macOS `Cmd + Shift + 5` or OBS).
+2. Save or copy the recorded `.mp4` into `public/demo.mp4`.
+3. The showcase website will automatically detect and play your video inside the laptop mockup!
+*(You can also drag-and-drop any video directly onto the website's mockup to preview it on the fly!)*
+
+### Deploying to the Web (Free)
+- **Vercel (1-Click)**: Run `npx vercel` in this repo folder, or connect your GitHub repository on [vercel.com](https://vercel.com).
+- **GitHub Pages**: Build with `npm run build` and deploy the `dist/` directory.
+
+---
+
 ## 🛠 Web Preview & Development
 
 To run the standalone web preview:
