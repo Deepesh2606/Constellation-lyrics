@@ -6,7 +6,7 @@ import { TrackSearchModal } from './components/TrackSearchModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ShowcaseLandingPage } from './components/ShowcaseLandingPage';
 import { parseLrc } from './utils/lrcParser';
-import { fetchLyricsFromLRCLIB, PRESET_TRACKS } from './utils/lrclib';
+import { fetchLyricsFromLRCLIB, fetchAudioPreview, PRESET_TRACKS } from './utils/lrclib';
 import {
   ParsedLine,
   TrackInfo,
@@ -89,6 +89,46 @@ export default function App() {
   const lastTimestampRef = useRef<number>(performance.now());
   const smoothedProgressRef = useRef<number>(0);
   const lastReportedProgressRef = useRef<number>(0);
+
+  // Audio preview playback for Web Simulator
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioSrc, setAudioSrc] = useState<string | null>(PRESET_TRACKS[0].audioUrl || null);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [audioVolume, setAudioVolume] = useState(0.85);
+
+  // Auto-load audio stream for current track in Simulator
+  useEffect(() => {
+    if (isSpicetifyNative) return;
+    let cancelled = false;
+
+    const updateAudio = async () => {
+      if (currentTrack.audioUrl) {
+        setAudioSrc(currentTrack.audioUrl);
+        return;
+      }
+      const preview = await fetchAudioPreview(currentTrack.title, currentTrack.artist);
+      if (!cancelled && preview) {
+        setAudioSrc(preview);
+      }
+    };
+
+    updateAudio();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTrack, isSpicetifyNative]);
+
+  // Synchronize audio element playback & volume
+  useEffect(() => {
+    if (isSpicetifyNative || !audioRef.current) return;
+    audioRef.current.volume = isAudioMuted ? 0 : audioVolume;
+
+    if (isPlaying && viewMode === 'simulator') {
+      audioRef.current.play().catch(() => {});
+    } else {
+      audioRef.current.pause();
+    }
+  }, [isPlaying, audioSrc, isAudioMuted, audioVolume, isSpicetifyNative, viewMode]);
 
   const handleUpdateSettings = (newSettings: ConstellationSettings) => {
     setSettings(newSettings);
@@ -235,14 +275,20 @@ export default function App() {
 
       // Simulation mode
       if (isPlaying) {
-        setCurrentTimeMs((prev) => {
-          const duration = currentTrack.durationMs || 180000;
-          const next = prev + delta;
-          if (next >= duration) {
-            return 0; // loop back
-          }
-          return next;
-        });
+        if (audioRef.current && !audioRef.current.paused && audioRef.current.currentTime > 0) {
+          const audioMs = audioRef.current.currentTime * 1000;
+          setCurrentTimeMs(audioMs);
+          smoothedProgressRef.current = audioMs;
+        } else {
+          setCurrentTimeMs((prev) => {
+            const duration = currentTrack.durationMs || 180000;
+            const next = prev + delta;
+            if (next >= duration) {
+              return 0; // loop back
+            }
+            return next;
+          });
+        }
       }
     };
 
@@ -260,7 +306,14 @@ export default function App() {
       if (isPlaying) window.Spicetify.Player.pause?.();
       else window.Spicetify.Player.play?.();
     } else {
-      setIsPlaying((prev) => !prev);
+      setIsPlaying((prev) => {
+        const next = !prev;
+        if (audioRef.current) {
+          if (next) audioRef.current.play().catch(() => {});
+          else audioRef.current.pause();
+        }
+        return next;
+      });
     }
   }, [isSpicetifyNative, isPlaying]);
 
@@ -268,6 +321,11 @@ export default function App() {
     (ms: number) => {
       if (isSpicetifyNative && window.Spicetify?.Player) {
         window.Spicetify.Player.seek?.(ms);
+      } else if (audioRef.current) {
+        const dur = audioRef.current.duration;
+        if (Number.isFinite(dur) && dur > 0) {
+          audioRef.current.currentTime = Math.min(dur, Math.max(0, ms / 1000));
+        }
       }
       smoothedProgressRef.current = ms;
       lastReportedProgressRef.current = ms;
@@ -481,14 +539,32 @@ export default function App() {
             setCurrentTrack(t);
             setCurrentTimeMs(0);
             smoothedProgressRef.current = 0;
+            if (audioRef.current) {
+              audioRef.current.currentTime = 0;
+            }
           }}
           onOpenSearch={() => setIsSearchOpen(true)}
           onOpenExport={() => setIsExportOpen(true)}
           isSpicetifyNative={isSpicetifyNative}
           accentColor={settings.primaryColor}
           glowColor={settings.glowColor}
+          volume={audioVolume}
+          isMuted={isAudioMuted}
+          onVolumeChange={(v) => {
+            setAudioVolume(v);
+            setIsAudioMuted(false);
+          }}
+          onToggleMute={() => setIsAudioMuted((m) => !m)}
         />
       </div>
+
+      {/* Hidden audio element for Web Simulator */}
+      <audio
+        ref={audioRef}
+        src={audioSrc || undefined}
+        preload="auto"
+        onEnded={handleNextTrack}
+      />
 
       {/* Modal: Visual Studio Settings (Colors, Font, Glow) */}
       <SettingsModal

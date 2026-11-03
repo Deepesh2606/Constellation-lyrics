@@ -94,6 +94,28 @@ export async function searchLRCLIB(query: string): Promise<LRCLibSearchResult[]>
   }
 }
 
+/**
+ * Query free public Apple iTunes Music Search API for instant audio preview stream.
+ * Fully CORS enabled, zero API key required, works across all browsers.
+ */
+export async function fetchAudioPreview(title: string, artist: string): Promise<string | null> {
+  if (!title) return null;
+  try {
+    const cleanArtist = (artist || '').split(/[,&]/)[0].trim();
+    const query = encodeURIComponent(`${title} ${cleanArtist}`);
+    const res = await fetch(`https://itunes.apple.com/search?term=${query}&media=music&limit=1`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.results && data.results.length > 0 && data.results[0].previewUrl) {
+        return data.results[0].previewUrl;
+      }
+    }
+  } catch (e) {
+    // Ignore network error in fallback
+  }
+  return null;
+}
+
 // Preset tracks with synced lyrics for instant out-of-the-box demo
 export const PRESET_TRACKS: TrackInfo[] = [
   {
@@ -103,6 +125,7 @@ export const PRESET_TRACKS: TrackInfo[] = [
     durationMs: 230453,
     uri: 'spotify:track:7MXVkk9YM5IZxh0wAE26k8',
     coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=300&auto=format&fit=crop&q=80',
+    audioUrl: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/11/71/d6/1171d6ad-3c96-e027-2af6-58028426588c/mzaf_15137631797407745471.plus.aac.p.m4a',
     presetLrc: `[00:00.00] (Ooh, yeah)
 [00:03.20] (I'm trying to put you in the worst mood, ah)
 [00:07.10] (P1 cleaner than your church shoes, ah)
@@ -135,6 +158,7 @@ export const PRESET_TRACKS: TrackInfo[] = [
     durationMs: 200040,
     uri: 'spotify:track:0VjIjW4GlUZAMYd2vXMi3b',
     coverUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=300&auto=format&fit=crop&q=80',
+    audioUrl: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/12/73/ca/1273ca46-233a-5331-189b-25ac1d656533/mzaf_976341070785891411.plus.aac.p.m4a',
     presetLrc: `[00:00.00] (Yeah)
 [00:13.40] I've been tryna call
 [00:16.20] I've been on my own for long enough
@@ -165,6 +189,7 @@ export const PRESET_TRACKS: TrackInfo[] = [
     durationMs: 354320,
     uri: 'spotify:track:4u7EnebtmKWzUH433cf5Qv',
     coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=80',
+    audioUrl: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/4b/83/09/4b8309c3-e3b2-10bd-ea80-ec017d832503/mzaf_9752264660400108875.plus.aac.p.m4a',
     presetLrc: `[00:00.00] Is this the real life? Is this just fantasy?
 [00:07.50] Caught in a landslide, no escape from reality
 [00:15.20] Open your eyes, look up to the skies and see
@@ -192,6 +217,7 @@ export const PRESET_TRACKS: TrackInfo[] = [
     durationMs: 242000,
     uri: 'spotify:track:1mea3bSkSGXuIRvnydlB5b',
     coverUrl: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=300&auto=format&fit=crop&q=80',
+    audioUrl: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/a3/30/8e/a3308eed-d8b7-e0b3-f09d-5e1b0f4d660a/mzaf_8517946447501075134.plus.aac.p.m4a',
     presetLrc: `[00:00.00] (Instrumental Strings)
 [00:14.50] I used to rule the world
 [00:18.20] Seas would rise when I gave the word

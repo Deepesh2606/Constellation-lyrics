@@ -45,6 +45,7 @@ export interface TrackInfo {
   uri: string;
   coverUrl?: string;
   presetLrc?: string;
+  audioUrl?: string;
 }
 
 export interface LRCLibSearchResult {

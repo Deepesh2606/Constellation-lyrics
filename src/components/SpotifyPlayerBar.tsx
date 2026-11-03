@@ -7,6 +7,8 @@ import {
   Search,
   Terminal,
   ListMusic,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { TrackInfo } from '../types';
 
@@ -25,6 +27,10 @@ interface SpotifyPlayerBarProps {
   isSpicetifyNative: boolean;
   accentColor?: string;
   glowColor?: string;
+  volume?: number;
+  isMuted?: boolean;
+  onVolumeChange?: (val: number) => void;
+  onToggleMute?: () => void;
 }
 
 function formatTime(ms: number): string {
@@ -48,6 +54,10 @@ export const SpotifyPlayerBar: React.FC<SpotifyPlayerBarProps> = ({
   onOpenExport,
   accentColor = '#d4ff3a',
   glowColor = '#d4ff3a',
+  volume = 0.85,
+  isMuted = false,
+  onVolumeChange,
+  onToggleMute,
 }) => {
   const progressBarRef = useRef<HTMLDivElement>(null);
 
@@ -179,6 +189,35 @@ export const SpotifyPlayerBar: React.FC<SpotifyPlayerBarProps> = ({
             ))}
           </select>
         </div>
+
+        {/* Audio Volume Controls (Web Simulator) */}
+        {onToggleMute && (
+          <div className="flex items-center gap-1.5 px-2 py-1 bg-neutral-900 border border-neutral-700/80 rounded-lg">
+            <button
+              onClick={onToggleMute}
+              className="text-neutral-400 hover:text-white p-1 rounded transition-colors"
+              title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
+            >
+              {isMuted ? (
+                <VolumeX className="w-3.5 h-3.5 text-red-400" />
+              ) : (
+                <Volume2 className="w-3.5 h-3.5 text-neutral-300 hover:text-white" />
+              )}
+            </button>
+            {onVolumeChange && (
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={isMuted ? 0 : volume}
+                onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+                className="w-14 h-1 accent-red-500 bg-neutral-700 rounded-lg cursor-pointer"
+                title="Simulator Volume"
+              />
+            )}
+          </div>
+        )}
 
         {/* Live Search LRCLIB */}
         <button
