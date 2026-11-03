@@ -32,7 +32,7 @@ interface ShowcaseLandingPageProps {
 
 export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProps) {
   const [videoSrc, setVideoSrc] = useState<string>('/demo.mp4');
-  const [videoLoaded, setVideoLoaded] = useState<boolean>(false);
+  const [videoLoaded, setVideoLoaded] = useState<boolean>(true);
   const [isPlayingVideo, setIsPlayingVideo] = useState<boolean>(true);
   const [activeScreenTab, setActiveScreenTab] = useState<'video' | 'live'>('video');
   const [copiedStep, setCopiedStep] = useState<number | null>(null);
@@ -189,22 +189,22 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
   const currentSteps = activeOs === 'mac' ? installStepsMac : installStepsWin;
 
   return (
-    <div className="min-h-screen bg-[#07080b] text-[#f0f2f5] font-sans antialiased selection:bg-[#d4ff3a]/30 selection:text-white relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#07080b] text-[#f0f2f5] font-sans antialiased selection:bg-red-500/30 selection:text-white relative overflow-x-hidden">
       {/* Background Starlight & Ambient Aura Gradients */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[1000px] h-[550px] bg-[radial-gradient(ellipse_at_center,rgba(212,255,58,0.11)_0%,rgba(14,165,233,0.06)_40%,transparent_75%)] blur-[90px]" />
-        <div className="absolute top-[40%] right-[-10%] w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(168,85,247,0.07)_0%,transparent_70%)] blur-[100px]" />
-        <div className="absolute top-[70%] left-[-10%] w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(212,255,58,0.05)_0%,transparent_70%)] blur-[110px]" />
+        <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[1000px] h-[550px] bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,0.12)_0%,rgba(244,63,94,0.06)_40%,transparent_75%)] blur-[90px]" />
+        <div className="absolute top-[40%] right-[-10%] w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(225,29,72,0.06)_0%,transparent_70%)] blur-[100px]" />
+        <div className="absolute top-[70%] left-[-10%] w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(239,68,68,0.06)_0%,transparent_70%)] blur-[110px]" />
       </div>
 
       {/* Floating Glass Navigation Header */}
       <header className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-5xl">
         <nav className="backdrop-blur-xl bg-[#0f1118]/75 border border-white/[0.08] rounded-full px-5 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.6)] flex items-center justify-between transition-all">
           <a href="#" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-full bg-[#d4ff3a]/15 border border-[#d4ff3a]/40 flex items-center justify-center text-[#d4ff3a] shadow-[0_0_12px_rgba(212,255,58,0.3)] group-hover:scale-105 transition-transform">
+            <div className="w-8 h-8 rounded-full bg-red-500/15 border border-red-500/40 flex items-center justify-center text-red-500 shadow-[0_0_14px_rgba(239,68,68,0.4)] group-hover:scale-105 transition-transform">
               <Sparkles className="w-4 h-4 fill-current" />
             </div>
-            <span className="font-bold text-sm tracking-tight text-white group-hover:text-[#d4ff3a] transition-colors">
+            <span className="font-bold text-sm tracking-tight text-white group-hover:text-red-400 transition-colors">
               Constellation
             </span>
           </a>
@@ -222,7 +222,7 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
                 onClick={onOpenSimulator}
                 className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white/80 hover:text-white bg-white/[0.08] border border-white/[0.12] hover:bg-white/[0.16] transition-all"
               >
-                <Sparkles className="w-3.5 h-3.5 text-[#d4ff3a]" />
+                <Sparkles className="w-3.5 h-3.5 text-red-400" />
                 <span>Web Simulator</span>
               </button>
             )}
@@ -237,9 +237,9 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
             </a>
             <a
               href="#install"
-              className="px-4 py-1.5 rounded-full text-xs font-bold text-black bg-[#d4ff3a] hover:bg-[#e2ff6b] shadow-[0_0_18px_rgba(212,255,58,0.4)] hover:shadow-[0_0_24px_rgba(212,255,58,0.6)] transition-all flex items-center gap-1.5"
+              className="px-4 py-1.5 rounded-full text-xs font-bold text-white bg-red-600 hover:bg-red-500 shadow-[0_0_18px_rgba(239,68,68,0.45)] hover:shadow-[0_0_24px_rgba(239,68,68,0.65)] transition-all flex items-center gap-1.5"
             >
-              <Zap className="w-3.5 h-3.5 fill-black" />
+              <Zap className="w-3.5 h-3.5 fill-white" />
               <span>Get for Spotify</span>
             </a>
           </div>
@@ -250,16 +250,16 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
       <main className="relative z-10 pt-36 pb-24 px-4 sm:px-6 max-w-6xl mx-auto flex flex-col items-center text-center">
         {/* Eyebrow Badge Pill */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.09] text-[11.5px] font-medium text-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.4)] mb-8 animate-fade-in backdrop-blur-md">
-          <span className="flex h-2 w-2 rounded-full bg-[#d4ff3a] animate-pulse" />
+          <span className="flex h-2 w-2 rounded-full bg-red-500 animate-pulse" />
           <span>Constellation 2.4 for Spicetify</span>
           <span className="text-white/30">|</span>
-          <span className="text-[#d4ff3a] font-semibold">Synced Starlight Lyrics</span>
+          <span className="text-red-400 font-semibold">Synced Starlight Lyrics</span>
         </div>
 
         {/* Primary Headline */}
         <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white max-w-4xl leading-[1.08] mb-6">
           Lyrics written <br />
-          <span className="bg-gradient-to-r from-white via-[#f0f9cc] to-[#d4ff3a] bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-white via-rose-100 to-red-500 bg-clip-text text-transparent">
             in the stars.
           </span>
         </h1>
@@ -273,7 +273,7 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
         <div className="flex flex-wrap items-center justify-center gap-4 mb-16">
           <a
             href="#install"
-            className="px-6 py-3 rounded-full text-sm font-bold text-black bg-[#d4ff3a] hover:bg-[#e4ff73] shadow-[0_0_25px_rgba(212,255,58,0.45)] hover:shadow-[0_0_35px_rgba(212,255,58,0.7)] transition-all flex items-center gap-2 group"
+            className="px-6 py-3 rounded-full text-sm font-bold text-white bg-red-600 hover:bg-red-500 shadow-[0_0_25px_rgba(239,68,68,0.5)] hover:shadow-[0_0_35px_rgba(239,68,68,0.7)] transition-all flex items-center gap-2 group"
           >
             <span>Install in 5 Minutes</span>
             <ExternalLink className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -283,7 +283,7 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
               onClick={onOpenSimulator}
               className="px-6 py-3 rounded-full text-sm font-semibold text-white bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.12] transition-all flex items-center gap-2"
             >
-              <Sparkles className="w-4 h-4 text-[#d4ff3a]" />
+              <Sparkles className="w-4 h-4 text-red-400" />
               <span>Launch Web Simulator</span>
             </button>
           )}
@@ -317,7 +317,7 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
               onClick={() => setActiveScreenTab('live')}
               className={`px-4 py-2 rounded-full text-xs font-semibold flex items-center gap-2 transition-all ${
                 activeScreenTab === 'live'
-                  ? 'bg-[#d4ff3a] text-black shadow-lg shadow-[#d4ff3a]/20'
+                  ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
                   : 'bg-white/[0.05] text-white/60 hover:text-white border border-white/[0.08]'
               }`}
             >
@@ -327,9 +327,9 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
           </div>
 
           {/* MacBook Outer Frame Chassis */}
-          <div className="relative mx-auto rounded-[28px] p-3 sm:p-4 bg-gradient-to-b from-[#2a2d36] via-[#16181f] to-[#0c0d12] border border-white/[0.14] shadow-[0_30px_90px_rgba(0,0,0,0.85),0_0_100px_rgba(212,255,58,0.12)]">
+          <div className="relative mx-auto rounded-[28px] p-3 sm:p-4 bg-gradient-to-b from-[#2a2d36] via-[#16181f] to-[#0c0d12] border border-white/[0.14] shadow-[0_30px_90px_rgba(0,0,0,0.85),0_0_100px_rgba(239,68,68,0.15)]">
             {/* Ambient Lighting Rim Glow */}
-            <div className="absolute -inset-1 rounded-[30px] bg-gradient-to-r from-[#d4ff3a]/20 via-transparent to-[#38bdf8]/20 -z-10 blur-xl opacity-75 pointer-events-none" />
+            <div className="absolute -inset-1 rounded-[30px] bg-gradient-to-r from-red-600/30 via-rose-500/10 to-red-600/30 -z-10 blur-xl opacity-75 pointer-events-none" />
 
             {/* Laptop Screen Display */}
             <div
@@ -354,6 +354,8 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
                         loop
                         muted
                         playsInline
+                        onLoadedData={() => setVideoLoaded(true)}
+                        onError={() => setVideoLoaded(false)}
                         className="w-full h-full object-cover"
                       />
                       {/* Play / Pause Float Pill Overlay */}
@@ -365,12 +367,12 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
                   ) : (
                     // Video Dropzone & Upload Guide
                     <div className="flex flex-col items-center justify-center p-8 text-center max-w-md">
-                      <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center text-[#d4ff3a] mb-4 shadow-[0_0_20px_rgba(212,255,58,0.15)]">
+                      <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center text-red-400 mb-4 shadow-[0_0_20px_rgba(239,68,68,0.25)]">
                         <Upload className="w-6 h-6" />
                       </div>
                       <h3 className="text-lg font-bold text-white mb-2">Display Your Screen Recording</h3>
                       <p className="text-xs text-white/50 leading-relaxed mb-6">
-                        Record Spotify playing Constellation (<code className="text-white/80">Cmd + Shift + 5</code>), then drop your video file here or save it to <code className="text-[#d4ff3a]">public/demo.mp4</code>.
+                        Record Spotify playing Constellation (<code className="text-white/80">Cmd + Shift + 5</code>), then drop your video file here or save it to <code className="text-red-400">public/demo.mp4</code>.
                       </p>
                       <div className="flex items-center gap-3">
                         <button
@@ -411,12 +413,16 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
                     trackArtist={sampleTrack.artist}
                     isLoadingLyrics={false}
                     errorLyrics={null}
-                    settings={DEFAULT_SETTINGS}
+                    settings={{
+                      ...DEFAULT_SETTINGS,
+                      primaryColor: '#ef4444',
+                      glowColor: '#ff3355'
+                    }}
                     onWordClick={(ms) => setDemoTimeMs(ms)}
                     onTogglePlay={() => setIsLivePlaying(!isLivePlaying)}
                   />
-                  <div className="absolute top-4 right-4 z-20 backdrop-blur-md bg-black/50 border border-white/10 rounded-full px-3 py-1 text-[11px] font-semibold text-[#d4ff3a] flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#d4ff3a] animate-pulse" />
+                  <div className="absolute top-4 right-4 z-20 backdrop-blur-md bg-black/50 border border-white/10 rounded-full px-3 py-1 text-[11px] font-semibold text-red-400 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                     <span>Interactive Canvas (Click words to seek)</span>
                   </div>
                 </div>
@@ -431,7 +437,7 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
         {/* Bento Grid Feature Highlights (trylumn.xyz style) */}
         <div id="features" className="w-full max-w-5xl text-left mb-28">
           <div className="text-center mb-16">
-            <p className="text-xs font-bold uppercase tracking-widest text-[#d4ff3a] mb-2">Designed for Immersion</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-red-500 mb-2">Designed for Immersion</p>
             <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
               Every detail tuned for music.
             </h2>
@@ -439,8 +445,8 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* Feature 1: Celestial Paths */}
-            <div className="md:col-span-2 rounded-[24px] p-8 bg-gradient-to-b from-[#13151d] to-[#0c0d12] border border-white/[0.08] relative overflow-hidden group hover:border-[#d4ff3a]/30 transition-all">
-              <div className="w-10 h-10 rounded-xl bg-[#d4ff3a]/10 border border-[#d4ff3a]/30 flex items-center justify-center text-[#d4ff3a] mb-6">
+            <div className="md:col-span-2 rounded-[24px] p-8 bg-gradient-to-b from-[#13151d] to-[#0c0d12] border border-white/[0.08] relative overflow-hidden group hover:border-red-500/30 transition-all">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 mb-6">
                 <Compass className="w-5 h-5" />
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Orbital Starlight & Popped Phrase Anchors</h3>
@@ -492,7 +498,7 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
         {/* 5-Step Installation Guide (Matching trylumn.xyz) */}
         <div id="install" className="w-full max-w-4xl text-left mb-28">
           <div className="text-center mb-12">
-            <p className="text-xs font-bold uppercase tracking-widest text-[#d4ff3a] mb-2">Five Minutes</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-red-500 mb-2">Five Minutes</p>
             <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
               Install in five steps
             </h2>
@@ -529,7 +535,7 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
                 className="rounded-2xl p-6 bg-[#0f1118]/80 border border-white/[0.07] hover:border-white/[0.14] transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
               >
                 <div className="flex items-start gap-4">
-                  <div className="w-7 h-7 rounded-full bg-[#d4ff3a]/15 text-[#d4ff3a] font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-7 h-7 rounded-full bg-red-500/15 text-red-400 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
                     {idx + 1}
                   </div>
                   <div>
@@ -540,13 +546,13 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
 
                 {step.cmd && (
                   <div className="flex items-center gap-2 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2 w-full md:w-auto overflow-x-auto justify-between">
-                    <code className="text-xs text-[#d4ff3a] font-mono whitespace-nowrap">{step.cmd}</code>
+                    <code className="text-xs text-red-300 font-mono whitespace-nowrap">{step.cmd}</code>
                     <button
                       onClick={() => copyToClipboard(step.cmd, idx)}
                       className="ml-3 p-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.16] text-white/80 hover:text-white transition-all shrink-0"
                       title="Copy command"
                     >
-                      {copiedStep === idx ? <Check className="w-3.5 h-3.5 text-[#d4ff3a]" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedStep === idx ? <Check className="w-3.5 h-3.5 text-red-400" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 )}
@@ -558,7 +564,7 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
         {/* FAQs Section (Matching trylumn.xyz "Good questions") */}
         <div id="faq" className="w-full max-w-3xl text-left mb-28">
           <div className="text-center mb-12">
-            <p className="text-xs font-bold uppercase tracking-widest text-[#d4ff3a] mb-2">FAQs</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-red-500 mb-2">FAQs</p>
             <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
               Good questions
             </h2>
@@ -574,7 +580,7 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
                 >
                   <button
                     onClick={() => setActiveFaq(isOpen ? null : idx)}
-                    className="w-full p-5 text-left flex items-center justify-between text-sm font-bold text-white hover:text-[#d4ff3a] transition-colors"
+                    className="w-full p-5 text-left flex items-center justify-between text-sm font-bold text-white hover:text-red-400 transition-colors"
                   >
                     <span>{faq.q}</span>
                     <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -592,7 +598,7 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
 
         {/* Final CTA Panel */}
         <div className="w-full max-w-4xl rounded-[32px] p-10 sm:p-14 bg-gradient-to-b from-[#14161f] to-[#090a0e] border border-white/[0.12] text-center shadow-[0_20px_80px_rgba(0,0,0,0.8)] relative overflow-hidden mb-24">
-          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#d4ff3a]/15 blur-3xl rounded-full pointer-events-none" />
+          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-red-600/20 blur-3xl rounded-full pointer-events-none" />
           <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight mb-4 relative z-10">
             Ready to feel your music in the cosmos?
           </h2>
@@ -602,9 +608,9 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
           <div className="flex flex-wrap items-center justify-center gap-4 relative z-10">
             <a
               href="#install"
-              className="px-7 py-3.5 rounded-full text-sm font-bold text-black bg-[#d4ff3a] hover:bg-[#e4ff73] shadow-[0_0_30px_rgba(212,255,58,0.5)] transition-all flex items-center gap-2"
+              className="px-7 py-3.5 rounded-full text-sm font-bold text-white bg-red-600 hover:bg-red-500 shadow-[0_0_30px_rgba(239,68,68,0.5)] transition-all flex items-center gap-2"
             >
-              <Zap className="w-4 h-4 fill-black" />
+              <Zap className="w-4 h-4 fill-white" />
               <span>Get Constellation for Free</span>
             </a>
             <a

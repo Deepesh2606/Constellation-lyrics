@@ -236,11 +236,11 @@ export const FONT_FAMILY_MAP: Record<
 };
 
 export const DEFAULT_SETTINGS: ConstellationSettings = {
-  themeId: 'lime',
-  primaryColor: '#d4ff3a',
-  glowColor: '#d4ff3a',
-  bgColor: '#0a0a0a',
-  pastColor: '#a4c442',
+  themeId: 'crimson',
+  primaryColor: '#ef4444',
+  glowColor: '#ff3355',
+  bgColor: '#07080b',
+  pastColor: '#f87171',
   futureColor: '#6b7280',
 
   fontFamily: 'sans',

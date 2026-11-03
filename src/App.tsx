@@ -322,7 +322,7 @@ export default function App() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.15] text-xs font-semibold text-white transition-all shadow"
             title="Return to Showcase Website"
           >
-            <span className="text-[#d4ff3a]">✦</span>
+            <span className="text-red-400">✦</span>
             <span>Showcase Site</span>
           </button>
           <div
