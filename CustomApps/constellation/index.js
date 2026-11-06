@@ -26,6 +26,35 @@ const FONT_MAP_JS = {
   rounded: { name: "Modern Rounded", css: '"Outfit", -apple-system, sans-serif' }
 };
 
+const CHROMA_SECTION_PALETTES = {
+  chorus: { primary: "#ff2a85", glow: "#f43f5e", past: "#f472b6", name: "Chorus" },
+  chorus2: { primary: "#d946ef", glow: "#a855f7", past: "#e879f9", name: "Chorus 2" },
+  drop: { primary: "#ff3366", glow: "#ff0055", past: "#fb7185", name: "Drop" },
+  verse1: { primary: "#00f0ff", glow: "#38bdf8", past: "#7dd3fc", name: "Verse 1" },
+  verse2: { primary: "#10b981", glow: "#34d399", past: "#6ee7b7", name: "Verse 2" },
+  verse3: { primary: "#fbbf24", glow: "#f59e0b", past: "#fde68a", name: "Verse 3" },
+  bridge: { primary: "#a855f7", glow: "#8b5cf6", past: "#c084fc", name: "Bridge" },
+  outro: { primary: "#38bdf8", glow: "#818cf8", past: "#93c5fd", name: "Outro" }
+};
+
+const FAST_BEAT_PALETTES = [
+  { primary: "#00f0ff", glow: "#38bdf8", past: "#7dd3fc", name: "Cyber Cyan" },
+  { primary: "#ff2a85", glow: "#f43f5e", past: "#f472b6", name: "Neon Orchid" },
+  { primary: "#10b981", glow: "#34d399", past: "#6ee7b7", name: "Aurora Mint" },
+  { primary: "#d946ef", glow: "#c084fc", past: "#e879f9", name: "Electric Violet" },
+  { primary: "#fbbf24", glow: "#f59e0b", past: "#fcd34d", name: "Solar Amber" },
+  { primary: "#ff3366", glow: "#f43f5e", past: "#fb7185", name: "Mars Crimson" },
+  { primary: "#d4ff3a", glow: "#a4c442", past: "#bef264", name: "Electric Lime" }
+];
+
+function formatTimeMs(ms) {
+  if (!ms || isNaN(ms)) return "0:00";
+  const sec = Math.floor(ms / 1000);
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s < 10 ? "0" : ""}${s}`;
+}
+
 const DEFAULT_CONSTELLATION_SETTINGS = {
   themeId: "dynamic",
   primaryColor: "#d4ff3a",
@@ -59,7 +88,9 @@ const DEFAULT_CONSTELLATION_SETTINGS = {
   enableSupernova: true,     // Shockwave ripple & sparks on word/star jump
   enableAudioHud: true,      // Live audio equalizer & BPM/Key metadata
   showSongSections: false,   // Off by default: Song sections (Verse/Chorus) timeline
-  autoScreensaver: true      // Clean OLED screensaver mode: hide HUD after 4s
+  autoScreensaver: true,     // Clean OLED screensaver mode: hide HUD after 4s
+  dynamicChromaShift: true,  // Auto-shift vibrant colors on popular verses (Chorus/Drop) and good beats
+  chromaSpeed: "dynamic"     // "dynamic" (Verses & Chorus) | "fast" (Every phrase & beat)
 };
 
 const MIN_WORD_DISTANCE = 56;
@@ -1021,6 +1052,11 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
 
   styleEl.textContent = `
     #spicetify-constellation-root {
+      --const-primary: ${s.primaryColor};
+      --const-glow: ${s.glowColor};
+      --const-glow-alpha: ${s.glowColor}25;
+      --const-past: ${s.pastColor};
+      --const-future: ${s.futureColor};
       position: relative;
       width: 100%;
       height: 100%;
@@ -1032,7 +1068,7 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       font-family: ${fontCss};
       box-sizing: border-box;
       cursor: grab;
-      transition: background-color 0.3s ease;
+      transition: background-color 0.4s ease;
     }
     #spicetify-constellation-root:active {
       cursor: grabbing;
@@ -1283,66 +1319,149 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       stroke-opacity: 0.12;
     }
 
-    /* Aesthetic Floating iOS Now Playing Widget */
+    /* Aesthetic Floating iOS Now Playing Widget (Draggable & Resizable) */
     .const-pinned-track-badge {
       position: absolute;
       display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 14px 18px 14px 14px;
-      background: rgba(12, 14, 22, 0.85);
+      flex-direction: column;
+      justify-content: center;
+      padding: 12px 16px;
+      background: rgba(12, 14, 22, 0.88);
       backdrop-filter: blur(40px) saturate(210%);
       -webkit-backdrop-filter: blur(40px) saturate(210%);
       border: 1px solid rgba(255, 255, 255, 0.16);
       border-radius: 26px;
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 35px ${s.glowColor}25, inset 0 1px 1.5px rgba(255, 255, 255, 0.22);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 35px var(--const-glow-alpha, ${s.glowColor}25), inset 0 1px 1.5px rgba(255, 255, 255, 0.22);
       z-index: 35;
       user-select: none;
       pointer-events: auto;
-      max-width: 460px;
-      min-width: 330px;
       cursor: grab;
-      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+      box-sizing: border-box;
+      overflow: hidden;
+      transition: box-shadow 0.2s ease, border-color 0.2s ease, background 0.3s ease;
       touch-action: none;
     }
     .const-pinned-track-badge:hover {
       background: rgba(16, 18, 28, 0.94);
       border-color: rgba(255, 255, 255, 0.28);
-      box-shadow: 0 30px 75px rgba(0, 0, 0, 0.82), 0 0 45px ${s.glowColor}38, inset 0 1px 2px rgba(255, 255, 255, 0.3);
-      transform: translateY(-2px);
+      box-shadow: 0 30px 75px rgba(0, 0, 0, 0.82), 0 0 45px var(--const-glow, ${s.glowColor}), inset 0 1px 2px rgba(255, 255, 255, 0.3);
     }
     .const-pinned-track-badge.is-dragging {
       cursor: grabbing !important;
-      transform: scale(1.035) !important;
-      box-shadow: 0 38px 85px rgba(0, 0, 0, 0.92), 0 0 55px ${s.glowColor}50, inset 0 1px 2px rgba(255, 255, 255, 0.4) !important;
+      transform: scale(1.025) !important;
+      box-shadow: 0 38px 85px rgba(0, 0, 0, 0.92), 0 0 55px var(--const-glow, ${s.glowColor}) !important;
       transition: none !important;
+    }
+    .const-pinned-track-badge.is-resizing {
+      cursor: nwse-resize !important;
+      border-color: var(--const-primary, ${s.primaryColor}) !important;
+      box-shadow: 0 36px 85px rgba(0, 0, 0, 0.9), 0 0 50px var(--const-glow, ${s.glowColor}) !important;
+      transition: none !important;
+    }
+    .widget-main-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      height: 100%;
     }
     .widget-drag-pill {
       position: absolute;
-      top: 6px;
+      top: 5px;
       left: 50%;
       transform: translateX(-50%);
       width: 38px;
       height: 4px;
       background: rgba(255, 255, 255, 0.25);
       border-radius: 999px;
-      pointer-events: none;
-      transition: all 0.25s ease;
+      cursor: pointer;
+      transition: all 0.2s ease;
     }
     .const-pinned-track-badge:hover .widget-drag-pill {
       background: rgba(255, 255, 255, 0.55);
       width: 48px;
     }
+    .widget-resize-handle {
+      position: absolute;
+      bottom: 3px;
+      right: 3px;
+      width: 18px;
+      height: 18px;
+      cursor: nwse-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.35);
+      z-index: 10;
+      transition: color 0.2s ease, transform 0.2s ease;
+    }
+    .widget-resize-handle:hover {
+      color: var(--const-primary, #ffffff);
+      transform: scale(1.25);
+    }
+    .pinned-pin-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.6);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+      margin-left: 2px;
+    }
+    .pinned-pin-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+      color: #ffffff;
+      transform: scale(1.08);
+    }
+    .pinned-pin-btn.is-pinned {
+      background: var(--const-primary, ${s.primaryColor});
+      color: #0b0c10;
+      box-shadow: 0 0 14px var(--const-glow, ${s.glowColor});
+    }
+    .widget-scrubber-row {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      width: 100%;
+    }
+    .widget-scrub-track {
+      width: 100%;
+      height: 3.5px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .widget-scrub-bar {
+      height: 100%;
+      background: var(--const-primary, ${s.primaryColor});
+      border-radius: 999px;
+      box-shadow: 0 0 8px var(--const-glow, ${s.glowColor});
+      transition: width 0.15s linear;
+    }
+    .widget-time-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 9.5px;
+      color: rgba(255, 255, 255, 0.45);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
     .pinned-track-art-wrapper {
       position: relative;
-      width: 66px;
-      height: 66px;
       border-radius: 18px;
       overflow: hidden;
       flex-shrink: 0;
-      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6), 0 0 20px ${s.primaryColor}33;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6), 0 0 20px var(--const-primary, ${s.primaryColor})33;
       border: 1px solid rgba(255, 255, 255, 0.16);
       background: #0f111a;
+      transition: width 0.2s ease, height 0.2s ease;
     }
     .pinned-track-art {
       width: 100%;
@@ -1388,8 +1507,9 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       font-weight: 800;
       letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: ${s.primaryColor};
-      text-shadow: 0 0 10px ${s.glowColor}88;
+      color: var(--const-primary, ${s.primaryColor});
+      text-shadow: 0 0 10px var(--const-glow, ${s.glowColor})88;
+      transition: color 0.4s ease, text-shadow 0.4s ease;
     }
     .pinned-drag-hint {
       display: inline-flex;
@@ -1410,10 +1530,11 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
     }
     .pinned-equalizer-bars .eq-bar {
       width: 2.5px;
-      background: ${s.primaryColor};
+      background: var(--const-primary, ${s.primaryColor});
       border-radius: 1.5px;
-      box-shadow: 0 0 8px ${s.glowColor};
+      box-shadow: 0 0 8px var(--const-glow, ${s.glowColor});
       animation: pinnedEqPulse 1.1s ease-in-out infinite alternate;
+      transition: background 0.4s ease, box-shadow 0.4s ease;
     }
     .pinned-equalizer-bars .bar-1 { height: 4px; animation-delay: 0s; }
     .pinned-equalizer-bars .bar-2 { height: 11px; animation-delay: 0.25s; }
@@ -1473,10 +1594,10 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       margin-left: 4px;
     }
     .pinned-play-btn:hover {
-      background: ${s.primaryColor};
+      background: var(--const-primary, ${s.primaryColor});
       color: #0b0c10;
       transform: scale(1.08);
-      box-shadow: 0 0 16px ${s.glowColor};
+      box-shadow: 0 0 16px var(--const-glow, ${s.glowColor});
     }
     .pinned-play-btn:active {
       transform: scale(0.94);
@@ -2555,6 +2676,11 @@ class ConstellationApp extends Component {
 
     const initialSettings = this.loadSettings();
     const initialWidgetPos = this.loadWidgetPosition();
+    const initialWidgetSize = this.loadWidgetSize();
+    let initialLocked = false;
+    try {
+      initialLocked = localStorage.getItem("constellation_widget_locked") === "true";
+    } catch (e) {}
 
     this.state = {
       trackInfo: getTrackInfo() || { title: "Waiting for playback", artist: "", album: "", durationMs: 0, uri: "" },
@@ -2580,7 +2706,10 @@ class ConstellationApp extends Component {
       songSections: [],
       playlistCoverUrl: null,
       widgetPos: initialWidgetPos,
-      isDraggingWidget: false
+      widgetSize: initialWidgetSize,
+      isDraggingWidget: false,
+      isResizingWidget: false,
+      isWidgetLocked: initialLocked
     };
 
     this._ktLineIdx = -1;
@@ -2600,9 +2729,15 @@ class ConstellationApp extends Component {
     this.dimensions = { width: 1200, height: 800 };
     this.currentUri = null;
 
-    // Draggable iOS Widget interaction state
+    // Draggable & Resizable iOS Widget interaction state
     this.widgetDragStart = { mouseX: 0, mouseY: 0, origX: initialWidgetPos.x, origY: initialWidgetPos.y };
+    this.widgetResizeStart = { mouseX: 0, mouseY: 0, origWidth: initialWidgetSize.width, origHeight: initialWidgetSize.height };
     this.widgetHasMoved = false;
+
+    // Dynamic chroma shift section tracking
+    this.currentChromaSection = null;
+    this.lastFastChromaIdx = 0;
+    this.lastChromaLineIdx = -1;
 
     // Smoothed continuous audio clock tracking
     this.lastRawProgress = 0;         // last value returned by getProgress()
@@ -2636,14 +2771,23 @@ class ConstellationApp extends Component {
     this.updateSettings = this.updateSettings.bind(this);
     this.resetSettings = this.resetSettings.bind(this);
 
-    // Draggable Now Playing Widget methods
+    // Draggable & Resizable Now Playing Widget methods
     this.loadWidgetPosition = this.loadWidgetPosition.bind(this);
+    this.loadWidgetSize = this.loadWidgetSize.bind(this);
+    this.cycleWidgetSize = this.cycleWidgetSize.bind(this);
     this.handleWidgetMouseDown = this.handleWidgetMouseDown.bind(this);
     this.handleWidgetMouseMove = this.handleWidgetMouseMove.bind(this);
     this.handleWidgetMouseUp = this.handleWidgetMouseUp.bind(this);
     this.handleWidgetTouchStart = this.handleWidgetTouchStart.bind(this);
     this.handleWidgetTouchMove = this.handleWidgetTouchMove.bind(this);
     this.handleWidgetTouchEnd = this.handleWidgetTouchEnd.bind(this);
+
+    this.handleWidgetResizeMouseDown = this.handleWidgetResizeMouseDown.bind(this);
+    this.handleWidgetResizeMouseMove = this.handleWidgetResizeMouseMove.bind(this);
+    this.handleWidgetResizeMouseUp = this.handleWidgetResizeMouseUp.bind(this);
+    this.handleWidgetResizeTouchStart = this.handleWidgetResizeTouchStart.bind(this);
+    this.handleWidgetResizeTouchMove = this.handleWidgetResizeTouchMove.bind(this);
+    this.handleWidgetResizeTouchEnd = this.handleWidgetResizeTouchEnd.bind(this);
   }
 
   loadWidgetPosition() {
@@ -2660,6 +2804,25 @@ class ConstellationApp extends Component {
       // ignore
     }
     return { x: 28, y: 28 };
+  }
+
+  loadWidgetSize() {
+    try {
+      const saved = (window.Spicetify && window.Spicetify.LocalStorage && window.Spicetify.LocalStorage.get("constellation:widget_size"))
+        || window.localStorage.getItem("constellation:widget_size");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.width === "number" && typeof parsed.height === "number") {
+          return {
+            width: Math.max(260, Math.min(850, parsed.width)),
+            height: Math.max(76, Math.min(480, parsed.height))
+          };
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return { width: 390, height: 96 };
   }
 
   loadSettings() {
@@ -2818,6 +2981,10 @@ class ConstellationApp extends Component {
     window.removeEventListener("mouseup", this.handleWidgetMouseUp);
     window.removeEventListener("touchmove", this.handleWidgetTouchMove);
     window.removeEventListener("touchend", this.handleWidgetTouchEnd);
+    window.removeEventListener("mousemove", this.handleWidgetResizeMouseMove);
+    window.removeEventListener("mouseup", this.handleWidgetResizeMouseUp);
+    window.removeEventListener("touchmove", this.handleWidgetResizeTouchMove);
+    window.removeEventListener("touchend", this.handleWidgetResizeTouchEnd);
   }
 
   handleKeyDown(e) {
@@ -3015,7 +3182,8 @@ class ConstellationApp extends Component {
 
   handleWidgetMouseDown(e) {
     if (e.button !== 0) return;
-    if (e.target.closest && e.target.closest(".pinned-play-btn")) return;
+    if (this.state.isWidgetLocked) return;
+    if (e.target.closest && (e.target.closest(".pinned-play-btn") || e.target.closest(".pinned-pin-btn") || e.target.closest(".widget-resize-handle"))) return;
     e.stopPropagation();
     e.preventDefault();
     this.widgetDragStart = {
@@ -3038,10 +3206,12 @@ class ConstellationApp extends Component {
       this.widgetHasMoved = true;
     }
     const container = this.containerRef && this.containerRef.current;
-    const maxW = (container ? container.clientWidth : window.innerWidth) - 100;
-    const maxH = (container ? container.clientHeight : window.innerHeight) - 80;
-    const nextX = Math.max(10, Math.min(maxW, this.widgetDragStart.origX + dx));
-    const nextY = Math.max(10, Math.min(maxH, this.widgetDragStart.origY + dy));
+    const badgeW = this.state.widgetSize ? this.state.widgetSize.width : 380;
+    const badgeH = this.state.widgetSize ? this.state.widgetSize.height : 95;
+    const maxW = (container ? container.clientWidth : window.innerWidth) - badgeW - 12;
+    const maxH = (container ? container.clientHeight : window.innerHeight) - badgeH - 12;
+    const nextX = Math.max(10, Math.min(Math.max(20, maxW), this.widgetDragStart.origX + dx));
+    const nextY = Math.max(10, Math.min(Math.max(20, maxH), this.widgetDragStart.origY + dy));
     this.setState({ widgetPos: { x: nextX, y: nextY } });
   }
 
@@ -3062,7 +3232,8 @@ class ConstellationApp extends Component {
 
   handleWidgetTouchStart(e) {
     if (!e.touches || e.touches.length !== 1) return;
-    if (e.target.closest && e.target.closest(".pinned-play-btn")) return;
+    if (this.state.isWidgetLocked) return;
+    if (e.target.closest && (e.target.closest(".pinned-play-btn") || e.target.closest(".pinned-pin-btn") || e.target.closest(".widget-resize-handle"))) return;
     e.stopPropagation();
     const t = e.touches[0];
     this.widgetDragStart = {
@@ -3087,10 +3258,12 @@ class ConstellationApp extends Component {
       this.widgetHasMoved = true;
     }
     const container = this.containerRef && this.containerRef.current;
-    const maxW = (container ? container.clientWidth : window.innerWidth) - 100;
-    const maxH = (container ? container.clientHeight : window.innerHeight) - 80;
-    const nextX = Math.max(10, Math.min(maxW, this.widgetDragStart.origX + dx));
-    const nextY = Math.max(10, Math.min(maxH, this.widgetDragStart.origY + dy));
+    const badgeW = this.state.widgetSize ? this.state.widgetSize.width : 380;
+    const badgeH = this.state.widgetSize ? this.state.widgetSize.height : 95;
+    const maxW = (container ? container.clientWidth : window.innerWidth) - badgeW - 12;
+    const maxH = (container ? container.clientHeight : window.innerHeight) - badgeH - 12;
+    const nextX = Math.max(10, Math.min(Math.max(20, maxW), this.widgetDragStart.origX + dx));
+    const nextY = Math.max(10, Math.min(Math.max(20, maxH), this.widgetDragStart.origY + dy));
     this.setState({ widgetPos: { x: nextX, y: nextY } });
   }
 
@@ -3106,6 +3279,148 @@ class ConstellationApp extends Component {
         }
         window.localStorage.setItem("constellation:widget_pos", str);
       } catch (err) {}
+    }
+  }
+
+  // Widget resizing (elongate width or increase height freely)
+  handleWidgetResizeMouseDown(e) {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    this.widgetResizeStart = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      origWidth: this.state.widgetSize.width,
+      origHeight: this.state.widgetSize.height
+    };
+    this.setState({ isResizingWidget: true });
+    window.addEventListener("mousemove", this.handleWidgetResizeMouseMove);
+    window.addEventListener("mouseup", this.handleWidgetResizeMouseUp);
+  }
+
+  handleWidgetResizeMouseMove(e) {
+    if (!this.state.isResizingWidget) return;
+    const dx = e.clientX - this.widgetResizeStart.mouseX;
+    const dy = e.clientY - this.widgetResizeStart.mouseY;
+    const container = this.containerRef && this.containerRef.current;
+    const maxW = (container ? container.clientWidth : window.innerWidth) - this.state.widgetPos.x - 16;
+    const maxH = (container ? container.clientHeight : window.innerHeight) - this.state.widgetPos.y - 16;
+    const nextW = Math.max(260, Math.min(Math.min(850, Math.max(300, maxW)), this.widgetResizeStart.origWidth + dx));
+    const nextH = Math.max(76, Math.min(Math.min(480, Math.max(100, maxH)), this.widgetResizeStart.origHeight + dy));
+    this.setState({ widgetSize: { width: Math.round(nextW), height: Math.round(nextH) } });
+  }
+
+  handleWidgetResizeMouseUp() {
+    window.removeEventListener("mousemove", this.handleWidgetResizeMouseMove);
+    window.removeEventListener("mouseup", this.handleWidgetResizeMouseUp);
+    if (this.state.isResizingWidget) {
+      this.setState({ isResizingWidget: false });
+      try {
+        const str = JSON.stringify(this.state.widgetSize);
+        if (window.Spicetify && window.Spicetify.LocalStorage) {
+          window.Spicetify.LocalStorage.set("constellation:widget_size", str);
+        }
+        window.localStorage.setItem("constellation:widget_size", str);
+      } catch (err) {}
+    }
+  }
+
+  handleWidgetResizeTouchStart(e) {
+    if (!e.touches || e.touches.length !== 1) return;
+    e.stopPropagation();
+    const t = e.touches[0];
+    this.widgetResizeStart = {
+      mouseX: t.clientX,
+      mouseY: t.clientY,
+      origWidth: this.state.widgetSize.width,
+      origHeight: this.state.widgetSize.height
+    };
+    this.setState({ isResizingWidget: true });
+    window.addEventListener("touchmove", this.handleWidgetResizeTouchMove, { passive: false });
+    window.addEventListener("touchend", this.handleWidgetResizeTouchEnd);
+  }
+
+  handleWidgetResizeTouchMove(e) {
+    if (!this.state.isResizingWidget || !e.touches || e.touches.length !== 1) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    const dx = t.clientX - this.widgetResizeStart.mouseX;
+    const dy = t.clientY - this.widgetResizeStart.mouseY;
+    const container = this.containerRef && this.containerRef.current;
+    const maxW = (container ? container.clientWidth : window.innerWidth) - this.state.widgetPos.x - 16;
+    const maxH = (container ? container.clientHeight : window.innerHeight) - this.state.widgetPos.y - 16;
+    const nextW = Math.max(260, Math.min(Math.min(850, Math.max(300, maxW)), this.widgetResizeStart.origWidth + dx));
+    const nextH = Math.max(76, Math.min(Math.min(480, Math.max(100, maxH)), this.widgetResizeStart.origHeight + dy));
+    this.setState({ widgetSize: { width: Math.round(nextW), height: Math.round(nextH) } });
+  }
+
+  handleWidgetResizeTouchEnd() {
+    window.removeEventListener("touchmove", this.handleWidgetResizeTouchMove);
+    window.removeEventListener("touchend", this.handleWidgetResizeTouchEnd);
+    if (this.state.isResizingWidget) {
+      this.setState({ isResizingWidget: false });
+      try {
+        const str = JSON.stringify(this.state.widgetSize);
+        if (window.Spicetify && window.Spicetify.LocalStorage) {
+          window.Spicetify.LocalStorage.set("constellation:widget_size", str);
+        }
+        window.localStorage.setItem("constellation:widget_size", str);
+      } catch (err) {}
+    }
+  }
+
+  cycleWidgetSize(e) {
+    if (e) e.stopPropagation();
+    const sizes = [
+      { width: 330, height: 86 },  // Compact
+      { width: 400, height: 98 },  // Medium
+      { width: 480, height: 146 }, // Large
+      { width: 560, height: 180 }  // Hero Expanded
+    ];
+    const curr = this.state.widgetSize;
+    let nextIdx = 0;
+    if (curr.height < 92) nextIdx = 1;
+    else if (curr.height < 120) nextIdx = 2;
+    else if (curr.height < 165) nextIdx = 3;
+    else nextIdx = 0;
+
+    const nextSize = sizes[nextIdx];
+    this.setState({ widgetSize: nextSize });
+    try {
+      const str = JSON.stringify(nextSize);
+      if (window.Spicetify && window.Spicetify.LocalStorage) {
+        window.Spicetify.LocalStorage.set("constellation:widget_size", str);
+      }
+      window.localStorage.setItem("constellation:widget_size", str);
+    } catch (err) {}
+  }
+
+  // Dynamic Chroma Palette Applier for Verses, Chorus & Beats
+  applyChromaPalette(pal, sectionName) {
+    if (!pal) return;
+    this.currentChromaPalette = pal;
+    const root = this.containerRef && this.containerRef.current;
+    if (root) {
+      root.style.setProperty("--const-primary", pal.primary);
+      root.style.setProperty("--const-glow", pal.glow);
+      root.style.setProperty("--const-glow-alpha", pal.glow + "38");
+      root.style.setProperty("--const-past", pal.past || pal.primary);
+    }
+    if (this.progressTrailEl) {
+      this.progressTrailEl.setAttribute("stroke", pal.primary);
+    }
+    if (this._beaconGroupEl) {
+      const elements = this._beaconGroupEl.querySelectorAll("circle, line");
+      elements.forEach(el => {
+        const stroke = el.getAttribute("stroke");
+        if (stroke && stroke !== "none") el.setAttribute("stroke", pal.primary);
+        const fill = el.getAttribute("fill");
+        if (fill && fill !== "none" && fill !== "#ffffff") el.setAttribute("fill", pal.primary);
+      });
+    }
+    const kickerEl = root ? root.querySelector(".pinned-track-kicker") : null;
+    if (kickerEl && sectionName) {
+      kickerEl.textContent = sectionName.toUpperCase();
     }
   }
 
@@ -3398,6 +3713,62 @@ class ConstellationApp extends Component {
       this.activeLineIndex = newActiveLineIdx;
     }
 
+    // Dynamic Section & Beat Chroma Shifting for Popular Verses (Chorus/Drop) and Beats
+    const currentSettings = this.state.settings || DEFAULT_CONSTELLATION_SETTINGS;
+    if (currentSettings.dynamicChromaShift !== false) {
+      const sections = this.state.songSections || [];
+      let activeSec = null;
+      for (let si = 0; si < sections.length; si++) {
+        if (progressMs >= sections[si].timeMs && progressMs <= sections[si].endTime) {
+          activeSec = sections[si];
+          break;
+        }
+      }
+
+      if (currentSettings.chromaSpeed === "fast") {
+        if (newActiveLineIdx !== this.lastChromaLineIdx && newActiveLineIdx >= 0) {
+          this.lastChromaLineIdx = newActiveLineIdx;
+          this.lastFastChromaIdx = (this.lastFastChromaIdx + 1) % FAST_BEAT_PALETTES.length;
+          const nextPal = FAST_BEAT_PALETTES[this.lastFastChromaIdx];
+          this.applyChromaPalette(nextPal, activeSec ? activeSec.name : "Beat");
+        }
+      } else {
+        const secKey = activeSec ? activeSec.name : "default";
+        if (secKey !== this.currentChromaSection) {
+          this.currentChromaSection = secKey;
+          let nextPal = null;
+          const nameLower = (activeSec ? activeSec.name : "").toLowerCase();
+
+          if (nameLower.includes("chorus")) {
+            if (nameLower.includes("2")) nextPal = CHROMA_SECTION_PALETTES.chorus2;
+            else if (nameLower.includes("3") || nameLower.includes("final")) nextPal = CHROMA_SECTION_PALETTES.drop;
+            else nextPal = CHROMA_SECTION_PALETTES.chorus;
+          } else if (nameLower.includes("drop") || nameLower.includes("hook")) {
+            nextPal = CHROMA_SECTION_PALETTES.drop;
+          } else if (nameLower.includes("verse 2")) {
+            nextPal = CHROMA_SECTION_PALETTES.verse2;
+          } else if (nameLower.includes("verse 3")) {
+            nextPal = CHROMA_SECTION_PALETTES.verse3;
+          } else if (nameLower.includes("bridge") || nameLower.includes("solo")) {
+            nextPal = CHROMA_SECTION_PALETTES.bridge;
+          } else if (nameLower.includes("outro")) {
+            nextPal = CHROMA_SECTION_PALETTES.outro;
+          } else {
+            nextPal = {
+              primary: currentSettings.primaryColor,
+              glow: currentSettings.glowColor,
+              past: currentSettings.pastColor,
+              name: activeSec ? activeSec.name : "Now Playing"
+            };
+          }
+
+          if (nextPal) {
+            this.applyChromaPalette(nextPal, activeSec ? activeSec.name : "Now Playing");
+          }
+        }
+      }
+    }
+
     // High performance sync for Kinetic Typography view
     if (this.state.parsedLyrics && this.state.parsedLyrics.length > 0) {
       let ktLine = -1;
@@ -3650,96 +4021,183 @@ class ConstellationApp extends Component {
         style: { backgroundImage: `url("${s.backdropSource === "playlist" && this.state.playlistCoverUrl ? this.state.playlistCoverUrl : trackInfo.coverUrl}")` }
       }),
 
-      // Pinned Aesthetic Floating iOS Now Playing Widget (Draggable & Movable)
-      s.pinTrackInfo !== false && trackInfo && trackInfo.title &&
-      react.createElement(
-        "div",
-        {
-          className: "const-pinned-track-badge" + (this.state.isDraggingWidget ? " is-dragging" : ""),
-          style: {
-            left: `${this.state.widgetPos.x}px`,
-            top: `${this.state.widgetPos.y}px`
-          },
-          onMouseDown: this.handleWidgetMouseDown,
-          onTouchStart: this.handleWidgetTouchStart,
-          onClick: (e) => {
-            if (this.widgetHasMoved) {
-              e.preventDefault();
-              e.stopPropagation();
-              return;
-            }
-            if (trackInfo.uri && window.Spicetify && window.Spicetify.Platform && window.Spicetify.Platform.History) {
-              window.Spicetify.Platform.History.push({ pathname: `/track/${trackInfo.uri.replace("spotify:track:", "")}` });
-            }
-          },
-          title: `${trackInfo.title} by ${trackInfo.artist}${trackInfo.album ? ` (${trackInfo.album})` : ""} • Drag anywhere to move`
-        },
-        react.createElement("div", { className: "widget-drag-pill" }),
-        react.createElement(
+      // Pinned Aesthetic Floating iOS Now Playing Widget (Draggable & Resizable)
+      s.pinTrackInfo !== false && trackInfo && trackInfo.title && (() => {
+        const isTall = this.state.widgetSize && this.state.widgetSize.height >= 125;
+        const artSize = isTall
+          ? Math.max(54, Math.min(84, this.state.widgetSize.height - 48))
+          : Math.max(50, Math.min(68, this.state.widgetSize.height - 24));
+        const duration = trackInfo.durationMs || 180000;
+        const progressPct = Math.max(0, Math.min(100, (this.currentSmoothedProgress / duration) * 100));
+
+        return react.createElement(
           "div",
-          { className: "pinned-track-art-wrapper" },
-          trackInfo.coverUrl
-            ? react.createElement("img", {
-                src: trackInfo.coverUrl,
-                className: "pinned-track-art",
-                alt: trackInfo.title
-              })
-            : react.createElement(
-                "div",
-                { className: "pinned-track-art-fallback" },
-                react.createElement("svg", { width: 26, height: 26, viewBox: "0 0 24 24", fill: s.primaryColor },
-                  react.createElement("path", { d: "M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" })
-                )
-              ),
-          react.createElement("div", { className: "pinned-track-art-sheen" })
-        ),
-        react.createElement(
-          "div",
-          { className: "pinned-track-texts" },
-          react.createElement(
-            "div",
-            { className: "pinned-track-eyebrow" },
-            react.createElement("span", { className: "pinned-track-kicker" }, "NOW PLAYING"),
-            isPlaying && react.createElement(
-              "div",
-              { className: "pinned-equalizer-bars" },
-              [1, 2, 3, 4].map(b => react.createElement("span", { key: b, className: `eq-bar bar-${b}` }))
-            ),
-            react.createElement("span", { className: "pinned-drag-hint" }, "⠿ DRAG")
-          ),
-          react.createElement("div", { className: "pinned-track-title" }, trackInfo.title),
-          react.createElement(
-            "div",
-            { className: "pinned-track-sub" },
-            react.createElement("span", { className: "pinned-track-artist" }, trackInfo.artist),
-            trackInfo.album && trackInfo.album !== trackInfo.title && react.createElement("span", { className: "pinned-track-album" }, ` • ${trackInfo.album}`)
-          )
-        ),
-        react.createElement(
-          "button",
           {
-            className: "pinned-play-btn",
-            title: isPlaying ? "Pause" : "Play",
+            className: "const-pinned-track-badge" + (this.state.isDraggingWidget ? " is-dragging" : "") + (this.state.isResizingWidget ? " is-resizing" : ""),
+            style: {
+              left: `${this.state.widgetPos.x}px`,
+              top: `${this.state.widgetPos.y}px`,
+              width: `${this.state.widgetSize.width}px`,
+              height: `${this.state.widgetSize.height}px`
+            },
+            onMouseDown: this.handleWidgetMouseDown,
+            onTouchStart: this.handleWidgetTouchStart,
             onClick: (e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              this.togglePlay();
-            }
+              if (this.widgetHasMoved) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+              }
+              if (trackInfo.uri && window.Spicetify && window.Spicetify.Platform && window.Spicetify.Platform.History) {
+                window.Spicetify.Platform.History.push({ pathname: `/track/${trackInfo.uri.replace("spotify:track:", "")}` });
+              }
+            },
+            title: `${trackInfo.title} by ${trackInfo.artist}${trackInfo.album ? ` (${trackInfo.album})` : ""} • Drag to move • Drag corner to resize • Double click pill to cycle sizes`
           },
-          isPlaying
-            ? react.createElement(
-              "svg",
-              { width: 14, height: 14, viewBox: "0 0 24 24", fill: "currentColor" },
-              react.createElement("rect", { x: 6, y: 4, width: 4, height: 16, rx: 1 }),
-              react.createElement("rect", { x: 14, y: 4, width: 4, height: 16, rx: 1 })
+          // Double-clickable Pill at top to cycle standard widget sizes
+          react.createElement("div", {
+            className: "widget-drag-pill",
+            onDoubleClick: this.cycleWidgetSize,
+            title: "Double click to cycle standard sizes"
+          }),
+
+          // Main horizontal row: Art + Texts + Pin & Play Controls
+          react.createElement(
+            "div",
+            { className: "widget-main-row" },
+            react.createElement(
+              "div",
+              {
+                className: "pinned-track-art-wrapper",
+                style: { width: `${artSize}px`, height: `${artSize}px` }
+              },
+              trackInfo.coverUrl
+                ? react.createElement("img", {
+                    src: trackInfo.coverUrl,
+                    className: "pinned-track-art",
+                    alt: trackInfo.title
+                  })
+                : react.createElement(
+                    "div",
+                    { className: "pinned-track-art-fallback" },
+                    react.createElement("svg", { width: 26, height: 26, viewBox: "0 0 24 24", fill: s.primaryColor },
+                      react.createElement("path", { d: "M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" })
+                    )
+                  ),
+              react.createElement("div", { className: "pinned-track-art-sheen" })
+            ),
+            react.createElement(
+              "div",
+              { className: "pinned-track-texts" },
+              react.createElement(
+                "div",
+                { className: "pinned-track-eyebrow" },
+                react.createElement("span", { className: "pinned-track-kicker" }, "NOW PLAYING"),
+                isPlaying && react.createElement(
+                  "div",
+                  { className: "pinned-equalizer-bars" },
+                  [1, 2, 3, 4].map(b => react.createElement("span", { key: b, className: `eq-bar bar-${b}` }))
+                ),
+                react.createElement("span", { className: "pinned-drag-hint" }, this.state.isWidgetLocked ? "🔒 PINNED" : "⠿ DRAG")
+              ),
+              react.createElement("div", { className: "pinned-track-title" }, trackInfo.title),
+              react.createElement(
+                "div",
+                { className: "pinned-track-sub" },
+                react.createElement("span", { className: "pinned-track-artist" }, trackInfo.artist),
+                trackInfo.album && trackInfo.album !== trackInfo.title && react.createElement("span", { className: "pinned-track-album" }, ` • ${trackInfo.album}`)
+              )
+            ),
+            // Pin title button on badge
+            react.createElement(
+              "button",
+              {
+                className: "pinned-pin-btn" + (this.state.isWidgetLocked ? " is-pinned" : ""),
+                title: this.state.isWidgetLocked ? "Unpin / Unlock Position" : "Pin / Lock Position",
+                onClick: (e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  const nextL = !this.state.isWidgetLocked;
+                  this.setState({ isWidgetLocked: nextL });
+                  try { localStorage.setItem("constellation_widget_locked", String(nextL)); } catch (err) {}
+                }
+              },
+              react.createElement(
+                "svg",
+                { width: 13, height: 13, viewBox: "0 0 24 24", fill: this.state.isWidgetLocked ? "currentColor" : "none", stroke: "currentColor", strokeWidth: 2 },
+                react.createElement("line", { x1: 12, y1: 17, x2: 12, y2: 22 }),
+                react.createElement("path", { d: "M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.89A2 2 0 0 1 15 10.77V7a3 3 0 0 0-6 0v3.77a2 2 0 0 1-1.11 1.79l-1.78.89A2 2 0 0 0 5 15.24Z" })
+              )
+            ),
+            // Play/Pause button on badge
+            react.createElement(
+              "button",
+              {
+                className: "pinned-play-btn",
+                title: isPlaying ? "Pause" : "Play",
+                onClick: (e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  this.togglePlay();
+                }
+              },
+              isPlaying
+                ? react.createElement(
+                  "svg",
+                  { width: 14, height: 14, viewBox: "0 0 24 24", fill: "currentColor" },
+                  react.createElement("rect", { x: 6, y: 4, width: 4, height: 16, rx: 1 }),
+                  react.createElement("rect", { x: 14, y: 4, width: 4, height: 16, rx: 1 })
+                )
+                : react.createElement(
+                  "svg",
+                  { width: 14, height: 14, viewBox: "0 0 24 24", fill: "currentColor" },
+                  react.createElement("polygon", { points: "6 4 20 12 6 20 6 4" })
+                )
             )
-            : react.createElement(
-              "svg",
-              { width: 14, height: 14, viewBox: "0 0 24 24", fill: "currentColor" },
-              react.createElement("polygon", { points: "6 4 20 12 6 20 6 4" })
+          ),
+
+          // Scrubber row when widget is elongated taller
+          isTall && react.createElement(
+            "div",
+            { className: "widget-scrubber-row" },
+            react.createElement(
+              "div",
+              { className: "widget-scrub-track" },
+              react.createElement("div", {
+                className: "widget-scrub-bar",
+                style: { width: `${progressPct}%` }
+              })
+            ),
+            react.createElement(
+              "div",
+              { className: "widget-time-labels" },
+              react.createElement("span", null, formatTimeMs(this.currentSmoothedProgress)),
+              react.createElement("span", null, formatTimeMs(duration))
             )
-        )
-      ),
+          ),
+
+          // Corner resize grip (drag to resize width & height freely)
+          react.createElement(
+            "div",
+            {
+              className: "widget-resize-handle",
+              onMouseDown: this.handleWidgetResizeMouseDown,
+              onTouchStart: this.handleWidgetResizeTouchStart,
+              title: "Drag to resize height & width"
+            },
+            react.createElement(
+              "svg",
+              { width: 10, height: 10, viewBox: "0 0 10 10", fill: "currentColor" },
+              react.createElement("circle", { cx: 8.5, cy: 1.5, r: 1 }),
+              react.createElement("circle", { cx: 8.5, cy: 5, r: 1 }),
+              react.createElement("circle", { cx: 8.5, cy: 8.5, r: 1 }),
+              react.createElement("circle", { cx: 5, cy: 5, r: 1 }),
+              react.createElement("circle", { cx: 5, cy: 8.5, r: 1 }),
+              react.createElement("circle", { cx: 1.5, cy: 8.5, r: 1 })
+            )
+          )
+        );
+      })(),
 
       // 2. Celestial Nebula Dust Clouds
       viewMode === "constellation" &&
@@ -4145,44 +4603,23 @@ class ConstellationApp extends Component {
               react.createElement("path", { d: "M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" })
             )
         ),
-        // Lyrics Refresh Button
+        // Pin Title / Floating Island Button (Replaces Reload and Close buttons)
         react.createElement(
           "button",
           {
-            className: "hud-btn",
-            title: "Reload Lyrics",
+            className: `hud-btn ${s.pinTrackInfo !== false ? "active" : ""}`,
+            style: s.pinTrackInfo !== false ? { color: s.primaryColor, borderColor: `${s.primaryColor}88` } : {},
+            title: s.pinTrackInfo !== false ? "Unpin Now Playing Title Island" : "Pin Now Playing Title Island",
             onClick: () => {
-              lyricsMemoryCache.clear();
-              this.currentUri = null;
-              this.handleSongChange();
+              const nextPin = s.pinTrackInfo === false;
+              this.updateSettings({ pinTrackInfo: nextPin });
             }
           },
           react.createElement(
             "svg",
-            { width: 13, height: 13, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2 },
-            react.createElement("path", { d: "M21.5 2v6h-6M2.5 22v-6h6" }),
-            react.createElement("path", { d: "M19.5 13a9 9 0 0 1-15 4L2.5 16M4.5 11a9 9 0 0 1 15-4L21.5 8" })
-          )
-        ),
-        // Close / Exit Constellation Button
-        react.createElement(
-          "button",
-          {
-            className: "hud-btn",
-            title: "Close Constellation (or click the sidebar/playbar button)",
-            onClick: () => {
-              if (window.Spicetify && window.Spicetify.Platform && window.Spicetify.Platform.History && window.Spicetify.Platform.History.goBack) {
-                window.Spicetify.Platform.History.goBack();
-              } else {
-                window.history.back();
-              }
-            }
-          },
-          react.createElement(
-            "svg",
-            { width: 13, height: 13, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.2, strokeLinecap: "round" },
-            react.createElement("line", { x1: 18, y1: 6, x2: 6, y2: 18 }),
-            react.createElement("line", { x1: 6, y1: 6, x2: 18, y2: 18 })
+            { width: 13, height: 13, viewBox: "0 0 24 24", fill: s.pinTrackInfo !== false ? "currentColor" : "none", stroke: "currentColor", strokeWidth: 2 },
+            react.createElement("line", { x1: 12, y1: 17, x2: 12, y2: 22 }),
+            react.createElement("path", { d: "M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.89A2 2 0 0 1 15 10.77V7a3 3 0 0 0-6 0v3.77a2 2 0 0 1-1.11 1.79l-1.78.89A2 2 0 0 0 5 15.24Z" })
           )
         )
       ),
@@ -4681,6 +5118,38 @@ class ConstellationApp extends Component {
                               react.createElement("div", { style: { fontSize: "11px", fontWeight: "600", color: "#ffffff" } }, preset.name)
                             )
                           )
+                        )
+                      )
+                    );
+                  }
+
+                  if (matches("Dynamic Beat & Popular Verse Chroma", "chorus popular verse beat color shift fast")) {
+                    themeRows.push(
+                      react.createElement("div", { key: "chromaShift", className: "const-settings-row" },
+                        react.createElement("div", null,
+                          react.createElement("div", { className: "const-row-label" }, "Popular Verse & Beat Chroma Shifting"),
+                          react.createElement("div", { className: "const-row-desc" }, "Dynamically morphs colors on Chorus, popular verses, drops, and energetic beats")
+                        ),
+                        renderIosSwitch(s.dynamicChromaShift !== false, () => {
+                          this.updateSettings({ dynamicChromaShift: s.dynamicChromaShift === false });
+                        })
+                      )
+                    );
+                    themeRows.push(
+                      react.createElement("div", { key: "chromaSpeed", className: "const-settings-row" },
+                        react.createElement("div", null,
+                          react.createElement("div", { className: "const-row-label" }, "Chroma Shift Cadence"),
+                          react.createElement("div", { className: "const-row-desc" }, "Popular Verses & Chorus (Dynamic) vs Fast Beat Pulse (Every phrase)")
+                        ),
+                        react.createElement(
+                          "select",
+                          {
+                            className: "const-select",
+                            value: s.chromaSpeed || "dynamic",
+                            onChange: (e) => this.updateSettings({ chromaSpeed: e.target.value })
+                          },
+                          react.createElement("option", { value: "dynamic" }, "Popular Verses & Chorus (Aesthetic)"),
+                          react.createElement("option", { value: "fast" }, "Fast Beat Pulse (Rapid Fresh)")
                         )
                       )
                     );

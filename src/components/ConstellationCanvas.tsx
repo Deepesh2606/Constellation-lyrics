@@ -19,6 +19,7 @@ import {
   Search,
   Sliders,
   Music2,
+  Pin,
 } from 'lucide-react';
 
 interface ConstellationCanvasProps {
@@ -196,7 +197,23 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
   const isDraggingRef = useRef(false);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
 
-  // Draggable Now Playing iOS Widget position
+  // Draggable & Resizable Now Playing iOS Widget position & size
+  const [isPinned, setIsPinned] = useState(() => {
+    try {
+      const saved = localStorage.getItem('constellation_pin_title');
+      return saved !== null ? saved === 'true' : true;
+    } catch (e) {
+      return true;
+    }
+  });
+  const [isWidgetLocked, setIsWidgetLocked] = useState(() => {
+    try {
+      return localStorage.getItem('constellation_widget_locked') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+
   const [widgetPos, setWidgetPos] = useState<{ x: number; y: number }>(() => {
     try {
       const saved = localStorage.getItem('constellation_widget_pos');
@@ -207,13 +224,54 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
     } catch (e) {}
     return { x: 24, y: 24 };
   });
+
+  const [widgetSize, setWidgetSize] = useState<{ width: number; height: number }>(() => {
+    try {
+      const saved = localStorage.getItem('constellation_widget_size');
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (typeof p.width === 'number' && typeof p.height === 'number') {
+          return {
+            width: Math.max(260, Math.min(850, p.width)),
+            height: Math.max(76, Math.min(480, p.height)),
+          };
+        }
+      }
+    } catch (e) {}
+    return { width: 390, height: 96 };
+  });
+
   const [isDraggingWidget, setIsDraggingWidget] = useState(false);
+  const [isResizingWidget, setIsResizingWidget] = useState(false);
   const widgetDragStartRef = useRef({ mouseX: 0, mouseY: 0, origX: 24, origY: 24 });
+  const widgetResizeStartRef = useRef({ mouseX: 0, mouseY: 0, origWidth: 390, origHeight: 96 });
   const widgetMovedRef = useRef(false);
+
+  const cycleWidgetSize = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const sizes = [
+      { width: 330, height: 86 },
+      { width: 400, height: 98 },
+      { width: 480, height: 146 },
+      { width: 560, height: 180 },
+    ];
+    let nextIdx = 0;
+    if (widgetSize.height < 92) nextIdx = 1;
+    else if (widgetSize.height < 120) nextIdx = 2;
+    else if (widgetSize.height < 165) nextIdx = 3;
+    else nextIdx = 0;
+
+    const next = sizes[nextIdx];
+    setWidgetSize(next);
+    try {
+      localStorage.setItem('constellation_widget_size', JSON.stringify(next));
+    } catch (err) {}
+  };
 
   const handleWidgetMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
-    if ((e.target as HTMLElement).closest('.pinned-play-btn')) return;
+    if (isWidgetLocked) return;
+    if ((e.target as HTMLElement).closest('.pinned-play-btn') || (e.target as HTMLElement).closest('.pinned-pin-btn') || (e.target as HTMLElement).closest('.widget-resize-handle')) return;
     e.stopPropagation();
     widgetDragStartRef.current = {
       mouseX: e.clientX,
@@ -232,8 +290,8 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
       }
       const containerW = containerRef.current?.clientWidth || window.innerWidth;
       const containerH = containerRef.current?.clientHeight || window.innerHeight;
-      const maxX = Math.max(16, containerW - 360);
-      const maxY = Math.max(16, containerH - 100);
+      const maxX = Math.max(16, containerW - widgetSize.width - 12);
+      const maxY = Math.max(16, containerH - widgetSize.height - 12);
       const nextX = Math.max(12, Math.min(maxX, widgetDragStartRef.current.origX + dx));
       const nextY = Math.max(12, Math.min(maxY, widgetDragStartRef.current.origY + dy));
       setWidgetPos({ x: nextX, y: nextY });
@@ -257,7 +315,8 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
 
   const handleWidgetTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length !== 1) return;
-    if ((e.target as HTMLElement).closest('.pinned-play-btn')) return;
+    if (isWidgetLocked) return;
+    if ((e.target as HTMLElement).closest('.pinned-play-btn') || (e.target as HTMLElement).closest('.pinned-pin-btn') || (e.target as HTMLElement).closest('.widget-resize-handle')) return;
     e.stopPropagation();
     const touch = e.touches[0];
     widgetDragStartRef.current = {
@@ -280,8 +339,8 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
       }
       const containerW = containerRef.current?.clientWidth || window.innerWidth;
       const containerH = containerRef.current?.clientHeight || window.innerHeight;
-      const maxX = Math.max(16, containerW - 360);
-      const maxY = Math.max(16, containerH - 100);
+      const maxX = Math.max(16, containerW - widgetSize.width - 12);
+      const maxY = Math.max(16, containerH - widgetSize.height - 12);
       const nextX = Math.max(12, Math.min(maxX, widgetDragStartRef.current.origX + dx));
       const nextY = Math.max(12, Math.min(maxY, widgetDragStartRef.current.origY + dy));
       setWidgetPos({ x: nextX, y: nextY });
@@ -294,6 +353,89 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
       setWidgetPos((curr) => {
         try {
           localStorage.setItem('constellation_widget_pos', JSON.stringify(curr));
+        } catch (err) {}
+        return curr;
+      });
+    };
+
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onTouchEnd);
+  };
+
+  const handleWidgetResizeMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    widgetResizeStartRef.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      origWidth: widgetSize.width,
+      origHeight: widgetSize.height,
+    };
+    setIsResizingWidget(true);
+
+    const onMouseMove = (me: MouseEvent) => {
+      const dx = me.clientX - widgetResizeStartRef.current.mouseX;
+      const dy = me.clientY - widgetResizeStartRef.current.mouseY;
+      const containerW = containerRef.current?.clientWidth || window.innerWidth;
+      const containerH = containerRef.current?.clientHeight || window.innerHeight;
+      const maxW = containerW - widgetPos.x - 16;
+      const maxH = containerH - widgetPos.y - 16;
+      const nextW = Math.max(260, Math.min(Math.min(850, maxW), widgetResizeStartRef.current.origWidth + dx));
+      const nextH = Math.max(76, Math.min(Math.min(480, maxH), widgetResizeStartRef.current.origHeight + dy));
+      setWidgetSize({ width: Math.round(nextW), height: Math.round(nextH) });
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      setIsResizingWidget(false);
+      setWidgetSize((curr) => {
+        try {
+          localStorage.setItem('constellation_widget_size', JSON.stringify(curr));
+        } catch (err) {}
+        return curr;
+      });
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  const handleWidgetResizeTouchStart = (e: React.TouchEvent) => {
+    if (!e.touches || e.touches.length !== 1) return;
+    e.stopPropagation();
+    const t = e.touches[0];
+    widgetResizeStartRef.current = {
+      mouseX: t.clientX,
+      mouseY: t.clientY,
+      origWidth: widgetSize.width,
+      origHeight: widgetSize.height,
+    };
+    setIsResizingWidget(true);
+
+    const onTouchMove = (me: TouchEvent) => {
+      if (!me.touches || me.touches.length !== 1) return;
+      me.preventDefault();
+      const touch = me.touches[0];
+      const dx = touch.clientX - widgetResizeStartRef.current.mouseX;
+      const dy = touch.clientY - widgetResizeStartRef.current.mouseY;
+      const containerW = containerRef.current?.clientWidth || window.innerWidth;
+      const containerH = containerRef.current?.clientHeight || window.innerHeight;
+      const maxW = containerW - widgetPos.x - 16;
+      const maxH = containerH - widgetPos.y - 16;
+      const nextW = Math.max(260, Math.min(Math.min(850, maxW), widgetResizeStartRef.current.origWidth + dx));
+      const nextH = Math.max(76, Math.min(Math.min(480, maxH), widgetResizeStartRef.current.origHeight + dy));
+      setWidgetSize({ width: Math.round(nextW), height: Math.round(nextH) });
+    };
+
+    const onTouchEnd = () => {
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+      setIsResizingWidget(false);
+      setWidgetSize((curr) => {
+        try {
+          localStorage.setItem('constellation_widget_size', JSON.stringify(curr));
         } catch (err) {}
         return curr;
       });
@@ -365,6 +507,88 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
 
   const activeNode = circlePos ? nodes[circlePos.activeIndex] : null;
   const activeLineIdx = circlePos ? circlePos.activeLineIndex : -1;
+
+  // Detect song sections (Intro, Verse, Chorus, Drop, Bridge, Outro)
+  const songSections = useMemo(() => {
+    if (!parsedLines || parsedLines.length < 3) return [];
+    const secs: { name: string; timeMs: number; endTime: number }[] = [];
+    const total = durationMs || (parsedLines[parsedLines.length - 1].timeMs + 8000);
+
+    if (parsedLines[0].timeMs > 5000) {
+      secs.push({ name: 'Intro', timeMs: 0, endTime: parsedLines[0].timeMs });
+    }
+
+    const counts: Record<string, number> = {};
+    parsedLines.forEach((l) => {
+      const norm = (l.text || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (norm.length > 6) counts[norm] = (counts[norm] || 0) + 1;
+    });
+
+    let cur = { name: 'Verse 1', timeMs: parsedLines[0].timeMs, endTime: parsedLines[0].endTime };
+    let vCount = 1;
+    let cCount = 1;
+
+    for (let i = 1; i < parsedLines.length; i++) {
+      const line = parsedLines[i];
+      const prev = parsedLines[i - 1];
+      const norm = (line.text || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const isRepeat = (counts[norm] || 0) > 1;
+      const timeGap = line.timeMs - prev.endTime;
+
+      if (timeGap > 4500 || (isRepeat && !cur.name.startsWith('Chorus'))) {
+        cur.endTime = prev.endTime;
+        secs.push(cur);
+        if (isRepeat) {
+          cur = { name: `Chorus ${cCount > 1 ? cCount : ''}`.trim(), timeMs: line.timeMs, endTime: line.endTime };
+          cCount++;
+        } else {
+          vCount++;
+          cur = { name: `Verse ${vCount}`, timeMs: line.timeMs, endTime: line.endTime };
+        }
+      } else {
+        cur.endTime = line.endTime;
+      }
+    }
+    if (cur) secs.push(cur);
+    return secs;
+  }, [parsedLines, durationMs]);
+
+  // Current active section
+  const activeSection = useMemo(() => {
+    if (!songSections || !songSections.length) return null;
+    for (let i = 0; i < songSections.length; i++) {
+      if (currentTimeMs >= songSections[i].timeMs && currentTimeMs <= songSections[i].endTime) {
+        return songSections[i];
+      }
+    }
+    return null;
+  }, [songSections, currentTimeMs]);
+
+  // Dynamic Chroma Palette for Popular Verses (Chorus/Drop/Bridge) & Beats
+  const activeChroma = useMemo(() => {
+    const secName = (activeSection?.name || '').toLowerCase();
+    if (secName.includes('chorus')) {
+      if (secName.includes('2')) return { primary: '#d946ef', glow: '#a855f7', name: 'Chorus 2' };
+      return { primary: '#ff2a85', glow: '#f43f5e', name: 'Chorus' };
+    }
+    if (secName.includes('drop') || secName.includes('hook')) {
+      return { primary: '#ff3366', glow: '#ff0055', name: 'Drop' };
+    }
+    if (secName.includes('verse 2')) {
+      return { primary: '#10b981', glow: '#34d399', name: 'Verse 2' };
+    }
+    if (secName.includes('verse 3')) {
+      return { primary: '#fbbf24', glow: '#f59e0b', name: 'Verse 3' };
+    }
+    if (secName.includes('bridge') || secName.includes('solo')) {
+      return { primary: '#a855f7', glow: '#8b5cf6', name: 'Bridge' };
+    }
+    return {
+      primary: settings.primaryColor,
+      glow: settings.glowColor,
+      name: activeSection?.name || 'Now Playing',
+    };
+  }, [activeSection, settings.primaryColor, settings.glowColor]);
 
   // Ultra-smooth 60/120 FPS continuous linear positioning loop
   useEffect(() => {
@@ -642,7 +866,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
           {settings.showProgressTrail && (
             <line
               ref={progressLineRef}
-              stroke={settings.primaryColor}
+              stroke={activeChroma.primary}
               strokeWidth="2.8"
               strokeOpacity="0.95"
               strokeLinecap="round"
@@ -665,7 +889,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                 <circle
                   r="18"
                   fill="none"
-                  stroke={settings.primaryColor}
+                  stroke={activeChroma.primary}
                   strokeWidth="1.6"
                   strokeOpacity="0.85"
                   filter={hasGlow ? 'url(#celestial-glow)' : undefined}
@@ -674,13 +898,13 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                 <circle
                   r="23"
                   fill="none"
-                  stroke={settings.primaryColor}
+                  stroke={activeChroma.primary}
                   strokeWidth="1"
                   strokeOpacity="0.35"
                 />
                 <circle
                   r="5.5"
-                  fill={settings.primaryColor}
+                  fill={activeChroma.primary}
                   filter={hasGlow ? 'url(#celestial-glow)' : undefined}
                 />
                 <line
@@ -688,7 +912,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                   y1="0"
                   x2="14"
                   y2="0"
-                  stroke={settings.primaryColor}
+                  stroke={activeChroma.primary}
                   strokeWidth="1.4"
                   strokeOpacity="0.9"
                   filter={hasGlow ? 'url(#celestial-glow)' : undefined}
@@ -698,7 +922,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                   y1="-14"
                   x2="0"
                   y2="14"
-                  stroke={settings.primaryColor}
+                  stroke={activeChroma.primary}
                   strokeWidth="1.4"
                   strokeOpacity="0.9"
                   filter={hasGlow ? 'url(#celestial-glow)' : undefined}
@@ -711,14 +935,14 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
               <>
                 <circle
                   r="22"
-                  fill={settings.glowColor}
+                  fill={activeChroma.glow}
                   fillOpacity="0.25"
                   filter={hasGlow ? 'url(#super-glow)' : undefined}
                 />
                 <circle
                   r="14"
                   fill="none"
-                  stroke={settings.primaryColor}
+                  stroke={activeChroma.primary}
                   strokeWidth="2"
                   strokeOpacity="0.9"
                   filter={hasGlow ? 'url(#celestial-glow)' : undefined}
@@ -726,7 +950,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                 />
                 <circle
                   r="7.5"
-                  fill={settings.primaryColor}
+                  fill={activeChroma.primary}
                   filter={hasGlow ? 'url(#celestial-glow)' : undefined}
                 />
                 <circle r="2.5" fill="#ffffff" />
@@ -739,7 +963,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                 <circle
                   r="16"
                   fill="none"
-                  stroke={settings.primaryColor}
+                  stroke={activeChroma.primary}
                   strokeWidth="2.5"
                   strokeOpacity="0.95"
                   filter={hasGlow ? 'url(#celestial-glow)' : undefined}
@@ -748,11 +972,11 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                 <circle
                   r="24"
                   fill="none"
-                  stroke={settings.primaryColor}
+                  stroke={activeChroma.primary}
                   strokeWidth="1"
                   strokeOpacity="0.25"
                 />
-                <circle r="4" fill={settings.primaryColor} />
+                <circle r="4" fill={activeChroma.primary} />
               </>
             )}
 
@@ -761,13 +985,13 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
               <>
                 <circle
                   r="6.5"
-                  fill={settings.primaryColor}
+                  fill={activeChroma.primary}
                   filter={hasGlow ? 'url(#celestial-glow)' : undefined}
                 />
                 <circle
                   r="11"
                   fill="none"
-                  stroke={settings.primaryColor}
+                  stroke={activeChroma.primary}
                   strokeWidth="1"
                   strokeOpacity="0.5"
                 />
@@ -793,7 +1017,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
               if (isWordActive) {
                 starRadius = 6.8;
                 starOpacity = 1.0;
-                starFill = settings.primaryColor;
+                starFill = activeChroma.primary;
                 textOpacity = 1.0;
                 textColor = '#ffffff';
                 wordFontSize = settings.fontSize * 1.25;
@@ -996,98 +1220,177 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
         </div>
       )}
 
-      {/* Aesthetic Floating iOS Now Playing Widget (Draggable Anywhere) */}
-      {trackTitle && (
-        <div
-          onMouseDown={handleWidgetMouseDown}
-          onTouchStart={handleWidgetTouchStart}
-          className={`absolute z-30 flex items-center gap-4 px-3.5 py-3 rounded-[24px] backdrop-blur-2xl bg-[#0c0e18]/85 border border-white/15 select-none transition-[box-shadow,border-color,transform] touch-none ${
-            isDraggingWidget
-              ? 'cursor-grabbing scale-[1.035] border-white/30 shadow-[0_35px_80px_rgba(0,0,0,0.9)]'
-              : 'cursor-grab hover:border-white/25 hover:-translate-y-0.5 shadow-[0_20px_50px_rgba(0,0,0,0.7)]'
-          } max-w-[460px] min-w-[320px]`}
-          style={{
-            left: widgetPos.x,
-            top: widgetPos.y,
-            boxShadow: isDraggingWidget
-              ? `0 35px 80px rgba(0,0,0,0.9), 0 0 45px ${settings.glowColor}50, inset 0 1px 2px rgba(255,255,255,0.35)`
-              : `0 20px 50px rgba(0,0,0,0.7), 0 0 35px ${settings.glowColor}25, inset 0 1px 1.5px rgba(255,255,255,0.2)`,
-          }}
-          title={`${trackTitle} by ${trackArtist}${trackAlbum ? ` (${trackAlbum})` : ''} • Drag anywhere to move`}
-        >
-          {/* iOS Top Drag Pill */}
-          <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-9 h-1 rounded-full bg-white/25 pointer-events-none transition-all group-hover:bg-white/45 group-hover:w-12" />
+      {/* Aesthetic Floating iOS Now Playing Widget (Draggable & Resizable) */}
+      {isPinned && trackTitle && (() => {
+        const isTall = widgetSize.height >= 125;
+        const artSize = isTall
+          ? Math.max(54, Math.min(84, widgetSize.height - 48))
+          : Math.max(50, Math.min(68, widgetSize.height - 24));
+        const duration = durationMs || 180000;
+        const progressPct = Math.max(0, Math.min(100, (currentTimeMs / duration) * 100));
 
-          {/* Cover Art with Gloss Sheen & Glow */}
+        return (
           <div
-            className="relative rounded-[18px] overflow-hidden shrink-0 shadow-lg border border-white/15 bg-neutral-900 group-hover:scale-105 transition-transform"
-            style={{ width: 66, height: 66 }}
+            onMouseDown={handleWidgetMouseDown}
+            onTouchStart={handleWidgetTouchStart}
+            className={`absolute z-30 flex flex-col justify-center px-4 py-3 rounded-[26px] backdrop-blur-2xl bg-[#0c0e18]/88 border border-white/15 select-none transition-[box-shadow,border-color,background] touch-none overflow-hidden ${
+              isDraggingWidget
+                ? 'cursor-grabbing scale-[1.025] border-white/35 shadow-[0_38px_85px_rgba(0,0,0,0.92)]'
+                : isResizingWidget
+                ? 'cursor-nwse-resize border-white/40 shadow-[0_36px_85px_rgba(0,0,0,0.9)]'
+                : 'cursor-grab hover:border-white/25 shadow-[0_22px_55px_rgba(0,0,0,0.72)]'
+            }`}
+            style={{
+              left: widgetPos.x,
+              top: widgetPos.y,
+              width: widgetSize.width,
+              height: widgetSize.height,
+              boxShadow: isDraggingWidget || isResizingWidget
+                ? `0 36px 85px rgba(0,0,0,0.92), 0 0 45px ${activeChroma.glow}50, inset 0 1px 2px rgba(255,255,255,0.35)`
+                : `0 22px 55px rgba(0,0,0,0.72), 0 0 35px ${activeChroma.glow}25, inset 0 1px 1.5px rgba(255,255,255,0.2)`,
+            }}
+            title={`${trackTitle} by ${trackArtist}${trackAlbum ? ` (${trackAlbum})` : ''} • Drag to move • Drag corner to resize • Double click pill to cycle sizes`}
           >
-            {coverUrl ? (
-              <img src={coverUrl} alt={trackTitle} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-white/5 flex items-center justify-center">
-                <Music2 className="w-6 h-6" style={{ color: settings.primaryColor }} />
-              </div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent pointer-events-none" />
-          </div>
+            {/* iOS Top Drag Pill (Double-click cycles preset widget sizes) */}
+            <div
+              onDoubleClick={cycleWidgetSize}
+              className="absolute top-1.5 left-1/2 -translate-x-1/2 w-9 h-1 rounded-full bg-white/25 cursor-pointer transition-all hover:bg-white/55 hover:w-12 z-10"
+              title="Double-click to cycle widget sizes"
+            />
 
-          {/* Texts & Equalizer */}
-          <div className="flex flex-col min-w-0 pr-1 flex-1 overflow-hidden">
-            <div className="flex items-center gap-2 mb-0.5">
-              <span
-                className="text-[10px] font-black uppercase tracking-widest"
-                style={{
-                  color: settings.primaryColor,
-                  textShadow: `0 0 8px ${settings.glowColor}88`,
+            {/* Main horizontal row: Art + Texts + Pin & Play Controls */}
+            <div className="flex items-center gap-3.5 w-full h-full">
+              {/* Cover Art with Gloss Sheen & Glow */}
+              <div
+                className="relative rounded-[18px] overflow-hidden shrink-0 shadow-lg border border-white/15 bg-neutral-900 transition-all"
+                style={{ width: artSize, height: artSize }}
+              >
+                {coverUrl ? (
+                  <img src={coverUrl} alt={trackTitle} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-white/5 flex items-center justify-center">
+                    <Music2 className="w-6 h-6" style={{ color: activeChroma.primary }} />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent pointer-events-none" />
+              </div>
+
+              {/* Texts & Equalizer */}
+              <div className="flex flex-col min-w-0 pr-1 flex-1 overflow-hidden">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span
+                    className="text-[10px] font-black uppercase tracking-widest transition-colors"
+                    style={{
+                      color: activeChroma.primary,
+                      textShadow: `0 0 10px ${activeChroma.glow}88`,
+                    }}
+                  >
+                    {activeChroma.name.toUpperCase()}
+                  </span>
+                  {isPlaying && (
+                    <div className="flex items-end gap-0.5 h-3">
+                      <span className="w-0.5 h-1 rounded-full animate-bounce" style={{ backgroundColor: activeChroma.primary }} />
+                      <span className="w-0.5 h-3 rounded-full animate-bounce [animation-delay:0.15s]" style={{ backgroundColor: activeChroma.primary }} />
+                      <span className="w-0.5 h-2 rounded-full animate-bounce [animation-delay:0.3s]" style={{ backgroundColor: activeChroma.primary }} />
+                      <span className="w-0.5 h-2.5 rounded-full animate-bounce [animation-delay:0.45s]" style={{ backgroundColor: activeChroma.primary }} />
+                    </div>
+                  )}
+                  <span className="ml-auto text-[9px] font-bold text-white/30 tracking-wider uppercase">
+                    {isWidgetLocked ? '🔒 Locked' : '⠿ Drag'}
+                  </span>
+                </div>
+                <div className="text-[16px] font-black text-white truncate max-w-[240px] sm:max-w-xs leading-tight tracking-tight">
+                  {trackTitle}
+                </div>
+                <div className="text-[12.5px] text-neutral-300 truncate max-w-[240px] sm:max-w-xs font-semibold leading-snug">
+                  {trackArtist}
+                  {trackAlbum && trackAlbum !== trackTitle && (
+                    <span className="text-neutral-500 text-[11px] font-normal ml-1.5">• {trackAlbum}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Pin / Lock Button on Badge */}
+              <button
+                type="button"
+                className={`pinned-pin-btn w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:scale-105 active:scale-95 shrink-0 ml-1 cursor-pointer ${
+                  isWidgetLocked
+                    ? 'bg-white/20 border-white/30 text-white'
+                    : 'bg-white/5 border-white/10 text-white/50 hover:text-white'
+                }`}
+                style={isWidgetLocked ? { color: activeChroma.primary, borderColor: `${activeChroma.primary}88` } : {}}
+                title={isWidgetLocked ? 'Unpin / Unlock Position' : 'Pin / Lock Position'}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsWidgetLocked((curr) => {
+                    const next = !curr;
+                    try { localStorage.setItem('constellation_widget_locked', String(next)); } catch (err) {}
+                    return next;
+                  });
                 }}
               >
-                Now Playing
-              </span>
-              {isPlaying && (
-                <div className="flex items-end gap-0.5 h-3">
-                  <span className="w-0.5 h-1 rounded-full animate-bounce" style={{ backgroundColor: settings.primaryColor }} />
-                  <span className="w-0.5 h-3 rounded-full animate-bounce [animation-delay:0.15s]" style={{ backgroundColor: settings.primaryColor }} />
-                  <span className="w-0.5 h-2 rounded-full animate-bounce [animation-delay:0.3s]" style={{ backgroundColor: settings.primaryColor }} />
-                  <span className="w-0.5 h-2.5 rounded-full animate-bounce [animation-delay:0.45s]" style={{ backgroundColor: settings.primaryColor }} />
+                <Pin className={`w-3.5 h-3.5 ${isWidgetLocked ? 'fill-current' : ''}`} />
+              </button>
+
+              {/* Quick Play/Pause Action Button */}
+              {onTogglePlay && (
+                <button
+                  type="button"
+                  className="pinned-play-btn w-9 h-9 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all hover:scale-105 active:scale-95 shrink-0 ml-1 cursor-pointer"
+                  title={isPlaying ? 'Pause' : 'Play'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTogglePlay();
+                  }}
+                >
+                  {isPlaying ? (
+                    <Pause className="w-4 h-4 fill-current" />
+                  ) : (
+                    <Play className="w-4 h-4 fill-current ml-0.5" />
+                  )}
+                </button>
+              )}
+            </div>
+
+            {/* Scrubber row when widget is elongated taller */}
+            {isTall && (
+              <div className="w-full flex flex-col gap-1 mt-2 pointer-events-none">
+                <div className="w-full h-1 bg-white/15 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-[width] duration-150"
+                    style={{
+                      width: `${progressPct}%`,
+                      backgroundColor: activeChroma.primary,
+                      boxShadow: `0 0 8px ${activeChroma.glow}`,
+                    }}
+                  />
                 </div>
-              )}
-              <span className="ml-auto text-[9px] font-bold text-white/30 tracking-wider uppercase">
-                ⠿ Drag
-              </span>
-            </div>
-            <div className="text-[16px] font-black text-white truncate max-w-[240px] sm:max-w-xs leading-tight tracking-tight">
-              {trackTitle}
-            </div>
-            <div className="text-[12.5px] text-neutral-300 truncate max-w-[240px] sm:max-w-xs font-semibold leading-snug">
-              {trackArtist}
-              {trackAlbum && trackAlbum !== trackTitle && (
-                <span className="text-neutral-500 text-[11px] font-normal ml-1.5">• {trackAlbum}</span>
-              )}
+                <div className="flex justify-between text-[9.5px] font-semibold text-white/45 tabular-nums">
+                  <span>{Math.floor(currentTimeMs / 60000)}:{Math.floor((currentTimeMs % 60000) / 1000).toString().padStart(2, '0')}</span>
+                  <span>{Math.floor(duration / 60000)}:{Math.floor((duration % 60000) / 1000).toString().padStart(2, '0')}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Corner Resize Handle (Drag to freely elongate width or increase height) */}
+            <div
+              onMouseDown={handleWidgetResizeMouseDown}
+              onTouchStart={handleWidgetResizeTouchStart}
+              className="absolute bottom-1 right-1 w-4 h-4 cursor-nwse-resize flex items-center justify-center text-white/35 hover:text-white hover:scale-125 transition-all z-20"
+              title="Drag to resize height & width"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                <circle cx="8.5" cy="1.5" r="1" />
+                <circle cx="8.5" cy="5" r="1" />
+                <circle cx="8.5" cy="8.5" r="1" />
+                <circle cx="5" cy="5" r="1" />
+                <circle cx="5" cy="8.5" r="1" />
+                <circle cx="1.5" cy="8.5" r="1" />
+              </svg>
             </div>
           </div>
-
-          {/* Quick Play/Pause Action Button */}
-          {onTogglePlay && (
-            <button
-              type="button"
-              className="pinned-play-btn w-9 h-9 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all hover:scale-105 active:scale-95 shrink-0 ml-1 cursor-pointer"
-              title={isPlaying ? 'Pause' : 'Play'}
-              onClick={(e) => {
-                e.stopPropagation();
-                onTogglePlay();
-              }}
-            >
-              {isPlaying ? (
-                <Pause className="w-4 h-4 fill-current" />
-              ) : (
-                <Play className="w-4 h-4 fill-current ml-0.5" />
-              )}
-            </button>
-          )}
-        </div>
-      )}
+        );
+      })()}
 
       {/* Track Info & Interactive Player Pill (Floating on Canvas) */}
       <div
@@ -1160,6 +1463,27 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
             <SkipForward className="w-4 h-4 fill-current" />
           </button>
         )}
+
+        {/* Pin Title Island Toggle (Replaces any reload/close buttons) */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsPinned((curr) => {
+              const next = !curr;
+              try {
+                localStorage.setItem('constellation_pin_title', String(next));
+              } catch (err) {}
+              return next;
+            });
+          }}
+          className={`p-1.5 rounded-full hover:bg-neutral-800 transition-colors ${
+            isPinned ? 'text-white' : 'text-neutral-500 hover:text-neutral-300'
+          }`}
+          style={isPinned ? { color: activeChroma.primary } : {}}
+          title={isPinned ? 'Unpin Floating Title Island' : 'Pin Floating Title Island'}
+        >
+          <Pin className={`w-4 h-4 ${isPinned ? 'fill-current' : ''}`} />
+        </button>
 
         {/* Search Songs shortcut */}
         {onOpenSearch && (
