@@ -73,30 +73,50 @@ export const SpotifyPlayerBar: React.FC<SpotifyPlayerBarProps> = ({
   };
 
   return (
-    <footer className="h-20 bg-[#121212] border-t border-neutral-800 px-4 md:px-6 flex items-center justify-between text-white select-none z-40 shrink-0 gap-4">
+    <footer className="h-22 bg-[#0e0f14]/95 backdrop-blur-xl border-t border-neutral-800/80 px-4 md:px-6 flex items-center justify-between text-white select-none z-40 shrink-0 gap-4">
       {/* Left: Track Info & Quick Switcher */}
-      <div className="flex items-center gap-3 w-1/4 min-w-[180px]">
+      <div className="flex items-center gap-3.5 w-1/4 min-w-[210px]">
         {currentTrack.coverUrl ? (
-          <img
-            src={currentTrack.coverUrl}
-            alt={currentTrack.title}
-            className="w-12 h-12 rounded-lg shadow-md object-cover border border-neutral-700/60"
-          />
+          <div className="relative group shrink-0">
+            <img
+              src={currentTrack.coverUrl}
+              alt={currentTrack.title}
+              className="w-14 h-14 rounded-xl shadow-lg object-cover border border-white/10 group-hover:scale-105 transition-transform"
+              style={{
+                boxShadow: `0 4px 16px rgba(0,0,0,0.5), 0 0 12px ${glowColor}25`,
+              }}
+            />
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-white/20 via-transparent to-transparent pointer-events-none" />
+          </div>
         ) : (
           <div
-            className="w-12 h-12 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center transition-colors"
+            className="w-14 h-14 rounded-xl bg-neutral-800 border border-neutral-700 flex items-center justify-center transition-colors shrink-0 shadow-md"
             style={{ color: accentColor }}
           >
-            <ListMusic className="w-6 h-6" />
+            <ListMusic className="w-7 h-7" />
           </div>
         )}
-        <div className="flex flex-col overflow-hidden">
-          <span className="text-sm font-semibold text-white truncate hover:underline cursor-pointer">
-            {currentTrack.title || 'No Track'}
-          </span>
-          <span className="text-xs text-neutral-400 truncate hover:underline cursor-pointer">
+        <div className="flex flex-col overflow-hidden min-w-0 pr-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm sm:text-[15px] font-bold text-white truncate hover:underline cursor-pointer leading-snug">
+              {currentTrack.title || 'No Track'}
+            </span>
+            {isPlaying && (
+              <div className="flex items-end gap-0.5 h-2.5 shrink-0">
+                <span className="w-0.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: accentColor }} />
+                <span className="w-0.5 h-2.5 rounded-full animate-bounce [animation-delay:0.15s]" style={{ backgroundColor: accentColor }} />
+                <span className="w-0.5 h-2 rounded-full animate-bounce [animation-delay:0.3s]" style={{ backgroundColor: accentColor }} />
+              </div>
+            )}
+          </div>
+          <span className="text-xs sm:text-[12.5px] text-neutral-300 truncate hover:underline cursor-pointer font-medium">
             {currentTrack.artist || 'Unknown Artist'}
           </span>
+          {currentTrack.album && currentTrack.album !== currentTrack.title && (
+            <span className="text-[11px] text-neutral-500 truncate hidden sm:block">
+              {currentTrack.album}
+            </span>
+          )}
         </div>
       </div>
 

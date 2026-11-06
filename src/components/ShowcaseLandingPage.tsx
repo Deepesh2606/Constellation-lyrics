@@ -490,6 +490,8 @@ export function ShowcaseLandingPage({ onOpenSimulator }: ShowcaseLandingPageProp
                     isPlaying={isLivePlaying}
                     trackTitle={sampleTrack.title}
                     trackArtist={sampleTrack.artist}
+                    coverUrl={sampleTrack.coverUrl}
+                    trackAlbum={sampleTrack.album}
                     isLoadingLyrics={false}
                     errorLyrics={null}
                     settings={{

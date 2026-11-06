@@ -18,6 +18,7 @@ import {
   SkipForward,
   Search,
   Sliders,
+  Music2,
 } from 'lucide-react';
 
 interface ConstellationCanvasProps {
@@ -27,6 +28,8 @@ interface ConstellationCanvasProps {
   isPlaying: boolean;
   trackTitle: string;
   trackArtist: string;
+  coverUrl?: string;
+  trackAlbum?: string;
   isLoadingLyrics: boolean;
   errorLyrics: string | null;
   settings?: ConstellationSettings;
@@ -165,6 +168,8 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
   isPlaying,
   trackTitle,
   trackArtist,
+  coverUrl,
+  trackAlbum,
   isLoadingLyrics,
   errorLyrics,
   settings = DEFAULT_SETTINGS,
@@ -884,6 +889,56 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
         </div>
       )}
 
+      {/* Aesthetic Floating Now Playing Island (Top-Left) */}
+      {trackTitle && (
+        <div
+          className="absolute top-5 left-5 z-20 flex items-center gap-3.5 px-3 py-2.5 rounded-2xl backdrop-blur-2xl bg-[#0a0b10]/80 border border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.65)] hover:border-white/20 transition-all group max-w-[340px] sm:max-w-md select-none cursor-pointer"
+          style={{
+            boxShadow: `0 16px 40px rgba(0,0,0,0.65), 0 0 25px ${settings.glowColor}1c`,
+          }}
+        >
+          {/* Cover Art with Sheen & Glow */}
+          <div className="relative w-13 h-13 rounded-xl overflow-hidden shrink-0 shadow-lg border border-white/10 group-hover:scale-105 transition-transform" style={{ width: 52, height: 52 }}>
+            {coverUrl ? (
+              <img src={coverUrl} alt={trackTitle} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-white/5 flex items-center justify-center">
+                <Music2 className="w-5 h-5 text-neutral-400" />
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/25 via-transparent to-transparent pointer-events-none" />
+          </div>
+
+          {/* Texts & Equalizer */}
+          <div className="flex flex-col min-w-0 pr-1 overflow-hidden">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span
+                className="text-[9.5px] font-extrabold uppercase tracking-widest"
+                style={{ color: settings.primaryColor }}
+              >
+                Now Playing
+              </span>
+              {isPlaying && (
+                <div className="flex items-end gap-0.5 h-2.5">
+                  <span className="w-0.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: settings.primaryColor }} />
+                  <span className="w-0.5 h-2.5 rounded-full animate-bounce [animation-delay:0.15s]" style={{ backgroundColor: settings.primaryColor }} />
+                  <span className="w-0.5 h-2 rounded-full animate-bounce [animation-delay:0.3s]" style={{ backgroundColor: settings.primaryColor }} />
+                </div>
+              )}
+            </div>
+            <div className="text-[14.5px] font-bold text-white truncate max-w-[220px] sm:max-w-xs leading-snug">
+              {trackTitle}
+            </div>
+            <div className="text-xs text-neutral-300 truncate max-w-[220px] sm:max-w-xs font-medium">
+              {trackArtist}
+              {trackAlbum && trackAlbum !== trackTitle && (
+                <span className="text-neutral-500 text-[11px] ml-1.5">• {trackAlbum}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Track Info & Interactive Player Pill (Floating on Canvas) */}
       <div
         className="constellation-bottom-bar absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-2.5 bg-neutral-950/90 backdrop-blur-xl border rounded-full shadow-2xl z-20 pointer-events-auto max-w-[90%] transition-all"
@@ -892,6 +947,15 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
           boxShadow: `0 8px 32px rgba(0,0,0,0.8), 0 0 16px ${settings.glowColor}25`,
         }}
       >
+        {/* Cover Art in bottom bar */}
+        {coverUrl && (
+          <img
+            src={coverUrl}
+            alt=""
+            className="w-8 h-8 rounded-lg object-cover shrink-0 border border-white/15 shadow-sm"
+          />
+        )}
+
         {/* On-Canvas Play/Pause Button */}
         {onTogglePlay && (
           <button
@@ -915,7 +979,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
         )}
 
         {/* Track Title and Artist */}
-        <div className="flex flex-col overflow-hidden max-w-[200px] sm:max-w-xs">
+        <div className="flex flex-col overflow-hidden max-w-[220px] sm:max-w-xs">
           <div className="text-xs sm:text-sm font-semibold text-white truncate flex items-center gap-1.5">
             <span
               className={`inline-block w-2 h-2 rounded-full shrink-0 ${

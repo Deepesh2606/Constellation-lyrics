@@ -512,6 +512,8 @@ export default function App() {
           isPlaying={isPlaying}
           trackTitle={currentTrack.title}
           trackArtist={currentTrack.artist}
+          coverUrl={currentTrack.coverUrl}
+          trackAlbum={currentTrack.album}
           isLoadingLyrics={isLoadingLyrics}
           errorLyrics={errorLyrics}
           settings={settings}

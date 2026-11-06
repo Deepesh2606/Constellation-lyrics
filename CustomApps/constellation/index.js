@@ -53,7 +53,7 @@ const DEFAULT_CONSTELLATION_SETTINGS = {
   syncOffset: 0,             // Default 0ms exact realtime sync
   enableAlbumBlurBg: true,   // Soft ambient blurred album art backdrop
   backdropSource: "album",   // "album" (Track Album Art) | "playlist" (Context Playlist Cover Art)
-  pinTrackInfo: false,       // Pin music name & artist badge permanently to top-left
+  pinTrackInfo: true,        // Aesthetic floating Now Playing card visible by default
   neverHideHud: false,       // Never auto-hide player bar
   enableBeatPulse: true,     // Rhythmic bass pulse simulation on words and stars
   enableSupernova: true,     // Shockwave ripple & sparks on word/star jump
@@ -97,12 +97,12 @@ const PRESET_TRACKS = [
 [01: 20.40] Look what you done done, I'm a starboy
 [01: 24.00] Look what you done done, I'm a starboy`
   },
-{
-  title: "Blinding Lights",
+  {
+    title: "Blinding Lights",
     artist: "The Weeknd",
-      album: "After Hours",
-        durationMs: 200040,
-          lrc: `[00:00.00] (Yeah)
+    album: "After Hours",
+    durationMs: 200040,
+    lrc: `[00:00.00] (Yeah)
 [00:13.40] I've been tryna call
 [00:16.20] I've been on my own for long enough
 [00:20.40] Maybe you can show me how to love, maybe
@@ -116,7 +116,7 @@ const PRESET_TRACKS = [
 [01:02.20] No, I can't sleep until I feel your touch
 [01:09.10] I said, ooh, I'm drowning in the night
 [01:16.00] Oh, when I'm like this, you're the one I trust`
-}
+  }
 ];
 
 // LRC Parser
@@ -195,7 +195,7 @@ function parseSpotifySyllables(lineText, syllables, lineStart, lineEnd) {
       const s = syllables[i];
       const sStart = parseInt(s.startTimeMs || lineStart, 10);
       const count = s.numChars || 0;
-      
+
       const slice = lineText.slice(charIndex, charIndex + count);
       charIndex += count;
 
@@ -541,7 +541,7 @@ async function fetchPlaylistCover(contextUri) {
           playlistCoverCache.set(contextUri, resolved);
           return resolved;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // 2. Spicetify Platform PlaylistAPI
@@ -554,7 +554,7 @@ async function fetchPlaylistCover(contextUri) {
           playlistCoverCache.set(contextUri, resolved);
           return resolved;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
   }
 
@@ -621,7 +621,7 @@ async function extractTrackColors(uri, coverUrl, callback) {
           return;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // Method 2: Spotify CosmosAsync colorextractor endpoint
@@ -645,7 +645,7 @@ async function extractTrackColors(uri, coverUrl, callback) {
           }
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // Method 3: Spotify GraphQL CoverArt extractedColors
@@ -663,7 +663,7 @@ async function extractTrackColors(uri, coverUrl, callback) {
           return;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // Method 4: Fetch image as Blob -> ObjectURL -> Canvas (Immune to Canvas CORS Taint)
@@ -714,7 +714,7 @@ async function extractTrackColors(uri, coverUrl, callback) {
         img.src = objUrl;
         return;
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 }
 
@@ -747,7 +747,7 @@ function getTrackInfo() {
   }
   coverUrl = resolveCoverUrl(coverUrl);
 
-    const contextUri = (data && (data.context_uri || (data.context && data.context.uri))) || (item.metadata && item.metadata.context_uri) || "";
+  const contextUri = (data && (data.context_uri || (data.context && data.context.uri))) || (item.metadata && item.metadata.context_uri) || "";
   return { title, artist, album, durationMs: parseInt(durationMs, 10), uri, coverUrl, contextUri };
 }
 
@@ -1283,58 +1283,142 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       stroke-opacity: 0.12;
     }
 
-    /* Pinned Music Name & Artist Badge */
+    /* Aesthetic Floating Now Playing Island */
     .const-pinned-track-badge {
       position: absolute;
-      top: 22px;
-      left: 22px;
+      top: 24px;
+      left: 24px;
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 6px 14px 6px 8px;
-      background: rgba(12, 13, 18, 0.78);
-      backdrop-filter: blur(24px) saturate(180%);
-      -webkit-backdrop-filter: blur(24px) saturate(180%);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 9999px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      gap: 14px;
+      padding: 10px 18px 10px 10px;
+      background: rgba(10, 11, 16, 0.72);
+      backdrop-filter: blur(32px) saturate(190%);
+      -webkit-backdrop-filter: blur(32px) saturate(190%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 35px ${s.glowColor}1c;
       z-index: 25;
       user-select: none;
       pointer-events: auto;
-      max-width: 340px;
-      transition: all 0.3s ease;
+      max-width: 440px;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
     }
     .const-pinned-track-badge:hover {
-      background: rgba(12, 13, 18, 0.92);
-      border-color: rgba(255, 255, 255, 0.16);
-      transform: scale(1.02);
+      background: rgba(14, 16, 24, 0.9);
+      border-color: rgba(255, 255, 255, 0.22);
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 26px 60px rgba(0, 0, 0, 0.75), 0 0 45px ${s.glowColor}30;
+    }
+    .pinned-track-art-wrapper {
+      position: relative;
+      width: 54px;
+      height: 54px;
+      border-radius: 14px;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5), 0 0 16px ${s.primaryColor}26;
+      border: 1px solid rgba(255, 255, 255, 0.12);
     }
     .pinned-track-art {
-      width: 26px;
-      height: 26px;
-      border-radius: 50%;
+      width: 100%;
+      height: 100%;
       object-fit: cover;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-      flex-shrink: 0;
+      display: block;
+      transition: transform 0.4s ease;
+    }
+    .const-pinned-track-badge:hover .pinned-track-art {
+      transform: scale(1.08);
+    }
+    .pinned-track-art-fallback {
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .pinned-track-art-sheen {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.22) 0%, transparent 60%);
+      pointer-events: none;
+      border-radius: 14px;
     }
     .pinned-track-texts {
       display: flex;
       flex-direction: column;
-      gap: 1px;
+      gap: 2px;
+      min-width: 0;
       overflow: hidden;
     }
+    .pinned-track-eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+    .pinned-track-kicker {
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: ${s.primaryColor};
+      text-shadow: 0 0 8px ${s.glowColor}66;
+    }
+    .pinned-equalizer-bars {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 10px;
+    }
+    .pinned-equalizer-bars .eq-bar {
+      width: 2px;
+      background: ${s.primaryColor};
+      border-radius: 1px;
+      box-shadow: 0 0 6px ${s.glowColor}aa;
+      animation: pinnedEqPulse 1.2s ease-in-out infinite alternate;
+    }
+    .pinned-equalizer-bars .bar-1 { height: 4px; animation-delay: 0s; }
+    .pinned-equalizer-bars .bar-2 { height: 9px; animation-delay: 0.25s; }
+    .pinned-equalizer-bars .bar-3 { height: 6px; animation-delay: 0.45s; }
+    .pinned-equalizer-bars .bar-4 { height: 8px; animation-delay: 0.15s; }
+    @keyframes pinnedEqPulse {
+      0% { height: 3px; opacity: 0.5; }
+      100% { height: 10px; opacity: 1; }
+    }
     .pinned-track-title {
-      font-size: 11.5px;
-      font-weight: 700;
+      font-size: 15px;
+      font-weight: 800;
       color: #ffffff;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      letter-spacing: -0.015em;
+      line-height: 1.25;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+    .pinned-track-sub {
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      line-height: 1.3;
     }
     .pinned-track-artist {
-      font-size: 10px;
-      color: #9ca3af;
-      white-space: nowrap;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.85);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pinned-track-album {
+      color: rgba(255, 255, 255, 0.45);
+      font-size: 11px;
+      margin-left: 4px;
       overflow: hidden;
       text-overflow: ellipsis;
     }
@@ -1371,15 +1455,31 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
 
     #spicetify-constellation-root .hud-track-meta {
       display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 140px;
+      max-width: 320px;
+      padding-right: 6px;
+    }
+    #spicetify-constellation-root .hud-track-cover {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      object-fit: cover;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      flex-shrink: 0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    #spicetify-constellation-root .hud-track-details {
+      display: flex;
       flex-direction: column;
       gap: 1px;
-      min-width: 110px;
-      max-width: 260px;
-      padding-right: 4px;
+      min-width: 0;
+      overflow: hidden;
     }
     #spicetify-constellation-root .hud-title {
-      font-size: 13px;
-      font-weight: 600;
+      font-size: 13.5px;
+      font-weight: 700;
       color: #ffffff;
       white-space: nowrap;
       overflow: hidden;
@@ -1389,8 +1489,9 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       gap: 7px;
     }
     #spicetify-constellation-root .hud-artist {
-      font-size: 11px;
-      color: #9ca3af;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.7);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -3229,15 +3330,14 @@ class ConstellationApp extends Component {
 
     const isWarpStyle = s.kineticStyle === "warp";
 
-    const containerClass = `kinetic-view-container ${
-      isWarpStyle
+    const containerClass = `kinetic-view-container ${isWarpStyle
         ? "kinetic-warp-mode"
         : s.kineticStyle === "y2k"
           ? "kinetic-y2k-mode"
           : s.kineticStyle === "retro_crt"
             ? "kinetic-retro-crt-mode"
             : "kinetic-cinematic-mode"
-    }`;
+      }`;
 
     return react.createElement(
       "div",
@@ -3358,21 +3458,57 @@ class ConstellationApp extends Component {
         style: { backgroundImage: `url("${s.backdropSource === "playlist" && this.state.playlistCoverUrl ? this.state.playlistCoverUrl : trackInfo.coverUrl}")` }
       }),
 
-      // Pinned Music Name & Artist Badge (Always visible when pinTrackInfo is enabled)
-      s.pinTrackInfo && trackInfo.title &&
+      // Pinned Aesthetic Now Playing Island (Always visible when pinTrackInfo is enabled)
+      s.pinTrackInfo !== false && trackInfo && trackInfo.title &&
       react.createElement(
         "div",
-        { className: "const-pinned-track-badge" },
-        trackInfo.coverUrl && react.createElement("img", {
-          src: trackInfo.coverUrl,
-          className: "pinned-track-art",
-          alt: ""
-        }),
+        {
+          className: "const-pinned-track-badge",
+          onClick: () => {
+            if (trackInfo.uri && window.Spicetify && window.Spicetify.Platform && window.Spicetify.Platform.History) {
+              window.Spicetify.Platform.History.push({ pathname: `/track/${trackInfo.uri.replace("spotify:track:", "")}` });
+            }
+          },
+          title: `${trackInfo.title} by ${trackInfo.artist}${trackInfo.album ? ` (${trackInfo.album})` : ""}`
+        },
+        react.createElement(
+          "div",
+          { className: "pinned-track-art-wrapper" },
+          trackInfo.coverUrl
+            ? react.createElement("img", {
+                src: trackInfo.coverUrl,
+                className: "pinned-track-art",
+                alt: trackInfo.title
+              })
+            : react.createElement(
+                "div",
+                { className: "pinned-track-art-fallback" },
+                react.createElement("svg", { width: 22, height: 22, viewBox: "0 0 24 24", fill: s.primaryColor },
+                  react.createElement("path", { d: "M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" })
+                )
+              ),
+          react.createElement("div", { className: "pinned-track-art-sheen" })
+        ),
         react.createElement(
           "div",
           { className: "pinned-track-texts" },
+          react.createElement(
+            "div",
+            { className: "pinned-track-eyebrow" },
+            react.createElement("span", { className: "pinned-track-kicker" }, "NOW PLAYING"),
+            isPlaying && react.createElement(
+              "div",
+              { className: "pinned-equalizer-bars" },
+              [1, 2, 3, 4].map(b => react.createElement("span", { key: b, className: `eq-bar bar-${b}` }))
+            )
+          ),
           react.createElement("div", { className: "pinned-track-title" }, trackInfo.title),
-          react.createElement("div", { className: "pinned-track-artist" }, trackInfo.artist)
+          react.createElement(
+            "div",
+            { className: "pinned-track-sub" },
+            react.createElement("span", { className: "pinned-track-artist" }, trackInfo.artist),
+            trackInfo.album && trackInfo.album !== trackInfo.title && react.createElement("span", { className: "pinned-track-album" }, ` • ${trackInfo.album}`)
+          )
         )
       ),
 
@@ -3649,27 +3785,36 @@ class ConstellationApp extends Component {
         react.createElement(
           "div",
           { className: "hud-track-meta" },
+          trackInfo.coverUrl && react.createElement("img", {
+            src: trackInfo.coverUrl,
+            className: "hud-track-cover",
+            alt: ""
+          }),
           react.createElement(
             "div",
-            { className: "hud-title" },
-            react.createElement("span", { className: "hud-badge" }),
-            react.createElement("span", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "210px" } }, trackInfo.title || "No track playing"),
-            s.enableAudioHud && react.createElement(
+            { className: "hud-track-details" },
+            react.createElement(
               "div",
-              { className: "hud-equalizer-bars", title: isPlaying ? "Live audio rhythm" : "Paused" },
-              [1, 2, 3, 4, 5].map((b) =>
-                react.createElement("span", {
-                  key: b,
-                  className: `hud-eq-bar bar-${b} ${isPlaying ? "playing" : "paused"}`
-                })
+              { className: "hud-title" },
+              react.createElement("span", { className: "hud-badge" }),
+              react.createElement("span", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, trackInfo.title || "No track playing"),
+              s.enableAudioHud && react.createElement(
+                "div",
+                { className: "hud-equalizer-bars", title: isPlaying ? "Live audio rhythm" : "Paused" },
+                [1, 2, 3, 4, 5].map((b) =>
+                  react.createElement("span", {
+                    key: b,
+                    className: `hud-eq-bar bar-${b} ${isPlaying ? "playing" : "paused"}`
+                  })
+                )
               )
+            ),
+            react.createElement(
+              "div",
+              { className: "hud-artist", style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } },
+              trackInfo.artist || "",
+              s.enableAudioHud && trackInfo.title ? ` · ${118 + ((trackInfo.title.length * 4) % 24)} BPM` : ""
             )
-          ),
-          react.createElement(
-            "div",
-            { className: "hud-artist", style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "210px" } },
-            trackInfo.artist || "",
-            s.enableAudioHud && trackInfo.title ? ` · ${118 + ((trackInfo.title.length * 4) % 24)} BPM` : ""
           )
         ),
         // Play / Pause Button
@@ -3929,14 +4074,14 @@ class ConstellationApp extends Component {
                 this.state.settingsSearch
                   ? `Search: "${this.state.settingsSearch}"`
                   : activeSettingsTab === "lyrics"
-                  ? "Lyrics"
-                  : activeSettingsTab === "background"
-                  ? "Background"
-                  : activeSettingsTab === "playback"
-                  ? "Playback"
-                  : activeSettingsTab === "appearance"
-                  ? "Appearance"
-                  : "About"
+                    ? "Lyrics"
+                    : activeSettingsTab === "background"
+                      ? "Background"
+                      : activeSettingsTab === "playback"
+                        ? "Playback"
+                        : activeSettingsTab === "appearance"
+                          ? "Appearance"
+                          : "About"
               ),
               react.createElement(
                 "div",
@@ -4205,6 +4350,18 @@ class ConstellationApp extends Component {
                           react.createElement("div", { className: "const-row-desc" }, "Soft blurred album cover breathing gently behind lyrics")
                         ),
                         renderIosSwitch(s.enableAlbumBlurBg, () => this.updateSettings({ enableAlbumBlurBg: !s.enableAlbumBlurBg }))
+                      )
+                    );
+                  }
+
+                  if (matches("Floating Now Playing Island", "pinned track info music name cover art badge")) {
+                    bgRows.push(
+                      react.createElement("div", { key: "pinTrackInfo", className: "const-settings-row" },
+                        react.createElement("div", null,
+                          react.createElement("div", { className: "const-row-label" }, "Floating Now Playing Island"),
+                          react.createElement("div", { className: "const-row-desc" }, "Display aesthetic album artwork and track name in a floating glass card")
+                        ),
+                        renderIosSwitch(s.pinTrackInfo !== false, () => this.updateSettings({ pinTrackInfo: s.pinTrackInfo === false }))
                       )
                     );
                   }
