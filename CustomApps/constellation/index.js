@@ -1145,35 +1145,40 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
     /* Future Words */
     .star-node.is-future circle {
       r: 2px;
-      fill: ${s.futureColor};
-      opacity: 0.32;
+      fill: var(--const-future, ${s.futureColor});
+      opacity: 0.38;
+      transition: fill 0.4s ease;
     }
     .star-node.is-future text {
-      fill: ${s.futureColor};
-      opacity: 0.38;
+      fill: var(--const-future, ${s.futureColor});
+      opacity: 0.45;
       font-size: ${s.fontSize * 0.88}px;
       font-weight: 400;
+      transition: fill 0.4s ease;
     }
 
     /* Upcoming words in active line */
     .star-node.is-current-upcoming circle {
       r: 3.2px;
-      fill: ${s.primaryColor};
+      fill: var(--const-primary, ${s.primaryColor});
       opacity: 0.75;
+      transition: fill 0.4s ease;
     }
     .star-node.is-current-upcoming text {
-      fill: ${s.primaryColor};
+      fill: var(--const-primary, ${s.primaryColor});
       opacity: 0.82;
       font-size: ${s.fontSize * 0.95}px;
       font-weight: 500;
+      transition: fill 0.4s ease;
     }
 
     /* Active word currently sung */
     .star-node.is-active circle {
       r: 7.2px;
-      fill: ${s.primaryColor};
+      fill: var(--const-primary, ${s.primaryColor});
       opacity: 1.0;
       filter: url(#lime-glow);
+      transition: fill 0.3s ease;
     }
     .star-node.is-active text {
       fill: #ffffff;
@@ -1186,27 +1191,31 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
     /* Sung words in active line */
     .star-node.is-current-past circle {
       r: 4.2px;
-      fill: ${s.pastColor};
+      fill: var(--const-past, ${s.pastColor});
       opacity: 0.95;
+      transition: fill 0.4s ease;
     }
     .star-node.is-current-past text {
-      fill: ${s.pastColor};
+      fill: var(--const-past, ${s.pastColor});
       opacity: 0.95;
       font-size: ${s.fontSize}px;
       font-weight: 600;
+      transition: fill 0.4s ease;
     }
 
     /* Past sung lines */
     .star-node.is-past circle {
       r: 2.2px;
-      fill: ${s.pastColor};
+      fill: var(--const-past, ${s.pastColor});
       opacity: 0.35;
+      transition: fill 0.4s ease;
     }
     .star-node.is-past text {
-      fill: ${s.pastColor};
+      fill: var(--const-past, ${s.pastColor});
       opacity: 0.35;
       font-size: ${s.fontSize * 0.88}px;
       font-weight: 400;
+      transition: fill 0.4s ease;
     }
 
     /* Line-End Popped Word Aesthetics */
@@ -1243,18 +1252,18 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
     .star-node.is-line-end.is-active .star-node-core {
       r: 8.5px !important;
       fill: #ffffff !important;
-      filter: url(#lime-glow) drop-shadow(0 0 12px ${s.primaryColor}) !important;
+      filter: url(#lime-glow) drop-shadow(0 0 12px var(--const-primary, ${s.primaryColor})) !important;
       opacity: 1 !important;
     }
 
     .star-node.is-line-end.is-popped .star-node-pop-ring,
     .star-node.is-line-end.is-active .star-node-pop-ring {
       r: 15px !important;
-      stroke: ${s.primaryColor} !important;
+      stroke: var(--const-primary, ${s.primaryColor}) !important;
       stroke-width: 2.2px !important;
       stroke-dasharray: none !important;
       opacity: 1 !important;
-      filter: drop-shadow(0 0 8px ${s.glowColor}) !important;
+      filter: drop-shadow(0 0 8px var(--const-glow, ${s.glowColor})) !important;
       animation: const-halo-pulse 2s infinite ease-in-out;
     }
 
@@ -1264,22 +1273,22 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       opacity: 1 !important;
       font-size: ${s.fontSize * 1.36}px !important;
       font-weight: 800 !important;
-      filter: url(#text-glow) drop-shadow(0 0 10px ${s.glowColor}) !important;
+      filter: url(#text-glow) drop-shadow(0 0 10px var(--const-glow, ${s.glowColor})) !important;
     }
 
     /* Past line-end words remain distinctly popped phrase anchors */
     .star-node.is-line-end.is-current-past .star-node-core,
     .star-node.is-line-end.is-past .star-node-core {
       r: 4.8px !important;
-      fill: ${s.primaryColor} !important;
+      fill: var(--const-primary, ${s.primaryColor}) !important;
       opacity: 0.88 !important;
-      filter: drop-shadow(0 0 6px ${s.primaryColor}66) !important;
+      filter: drop-shadow(0 0 6px var(--const-glow, ${s.primaryColor})) !important;
     }
 
     .star-node.is-line-end.is-current-past .star-node-pop-ring,
     .star-node.is-line-end.is-past .star-node-pop-ring {
       r: 11px !important;
-      stroke: ${s.primaryColor} !important;
+      stroke: var(--const-primary, ${s.primaryColor}) !important;
       stroke-width: 1.4px !important;
       stroke-dasharray: 2 2 !important;
       opacity: 0.55 !important;
@@ -1287,7 +1296,7 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
 
     .star-node.is-line-end.is-current-past text,
     .star-node.is-line-end.is-past text {
-      fill: ${s.primaryColor} !important;
+      fill: var(--const-primary, ${s.primaryColor}) !important;
       opacity: 0.85 !important;
       font-size: ${s.fontSize * 1.05}px !important;
       font-weight: 700 !important;
@@ -1295,26 +1304,26 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
 
     /* Connecting Lines */
     .const-line {
-      transition: stroke 0.3s ease, stroke-width 0.3s ease, stroke-opacity 0.3s ease;
+      transition: stroke 0.4s ease, stroke-width 0.3s ease, stroke-opacity 0.3s ease;
     }
     .const-line.is-future {
-      stroke: ${s.primaryColor};
+      stroke: var(--const-future, ${s.primaryColor});
       stroke-width: 1.1px;
-      stroke-opacity: 0.14;
+      stroke-opacity: 0.22;
     }
     .const-line.is-active {
-      stroke: ${s.primaryColor};
+      stroke: var(--const-primary, ${s.primaryColor});
       stroke-width: 2.4px;
       stroke-opacity: 0.95;
       filter: url(#lime-glow);
     }
     .const-line.is-past {
-      stroke: ${s.pastColor};
+      stroke: var(--const-past, ${s.pastColor});
       stroke-width: 1.4px;
       stroke-opacity: 0.65;
     }
     .const-line.is-old {
-      stroke: ${s.pastColor};
+      stroke: var(--const-past, ${s.pastColor});
       stroke-width: 1px;
       stroke-opacity: 0.12;
     }
@@ -1408,14 +1417,14 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       display: flex;
       align-items: center;
       justify-content: center;
-      color: rgba(255, 255, 255, 0.6);
+      color: rgba(255, 255, 255, 0.7);
       cursor: pointer;
       flex-shrink: 0;
       transition: all 0.2s ease;
       margin-left: 2px;
     }
     .pinned-pin-btn:hover {
-      background: rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.18);
       color: #ffffff;
       transform: scale(1.08);
     }
@@ -1423,6 +1432,107 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       background: var(--const-primary, ${s.primaryColor});
       color: #0b0c10;
       box-shadow: 0 0 14px var(--const-glow, ${s.glowColor});
+    }
+    .pinned-close-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+      margin-left: 2px;
+    }
+    .pinned-close-btn:hover {
+      background: rgba(239, 68, 68, 0.28);
+      border-color: rgba(239, 68, 68, 0.55);
+      color: #ff6b6b;
+      transform: scale(1.08);
+    }
+    /* Vertical Card Spotify Layout */
+    .const-pinned-track-badge.is-vertical-card {
+      padding: 16px 18px 14px 18px;
+      justify-content: space-between;
+    }
+    .widget-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      margin-bottom: 6px;
+    }
+    .widget-header-left {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .widget-header-right {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    .widget-vertical-art-wrapper {
+      position: relative;
+      width: 100%;
+      max-height: calc(100% - 150px);
+      aspect-ratio: 1 / 1;
+      border-radius: 20px;
+      overflow: hidden;
+      margin: 4px auto;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 25px var(--const-glow-alpha, ${s.glowColor}25);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: #0f111a;
+      flex-shrink: 1;
+    }
+    .widget-vertical-texts {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-top: 6px;
+      overflow: hidden;
+      text-align: left;
+    }
+    .widget-vertical-bottom {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .widget-vertical-transport {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      margin-top: 2px;
+    }
+    .widget-vertical-play-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--const-primary, ${s.primaryColor});
+      color: #0c0e18;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 18px var(--const-glow, ${s.glowColor});
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .widget-vertical-play-btn:hover {
+      transform: scale(1.08);
+      filter: brightness(1.1);
     }
     .widget-scrubber-row {
       margin-top: 8px;
@@ -1545,15 +1655,21 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       100% { height: 12px; opacity: 1; }
     }
     .pinned-track-title {
-      font-size: 16.5px;
-      font-weight: 800;
+      font-size: 17px;
+      font-weight: 900;
       color: #ffffff;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.025em;
       line-height: 1.25;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+    }
+    .pinned-track-title.bold-title {
+      font-size: 21px;
+      line-height: 1.2;
+      letter-spacing: -0.03em;
     }
     .pinned-track-sub {
       display: flex;
@@ -1561,15 +1677,20 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      font-size: 12.5px;
-      color: rgba(255, 255, 255, 0.75);
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.85);
       line-height: 1.3;
     }
     .pinned-track-artist {
-      font-weight: 600;
-      color: rgba(255, 255, 255, 0.9);
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.95);
       overflow: hidden;
       text-overflow: ellipsis;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    }
+    .pinned-track-artist.bold-artist {
+      font-size: 14.5px;
+      color: rgba(255, 255, 255, 0.9);
     }
     .pinned-track-album {
       color: rgba(255, 255, 255, 0.45);
@@ -2709,7 +2830,8 @@ class ConstellationApp extends Component {
       widgetSize: initialWidgetSize,
       isDraggingWidget: false,
       isResizingWidget: false,
-      isWidgetLocked: initialLocked
+      isWidgetLocked: initialLocked,
+      isWidgetDismissed: false
     };
 
     this._ktLineIdx = -1;
@@ -3183,7 +3305,7 @@ class ConstellationApp extends Component {
   handleWidgetMouseDown(e) {
     if (e.button !== 0) return;
     if (this.state.isWidgetLocked) return;
-    if (e.target.closest && (e.target.closest(".pinned-play-btn") || e.target.closest(".pinned-pin-btn") || e.target.closest(".widget-resize-handle"))) return;
+    if (e.target.closest && (e.target.closest(".pinned-play-btn") || e.target.closest(".pinned-pin-btn") || e.target.closest(".pinned-close-btn") || e.target.closest(".widget-resize-handle"))) return;
     e.stopPropagation();
     e.preventDefault();
     this.widgetDragStart = {
@@ -3233,7 +3355,7 @@ class ConstellationApp extends Component {
   handleWidgetTouchStart(e) {
     if (!e.touches || e.touches.length !== 1) return;
     if (this.state.isWidgetLocked) return;
-    if (e.target.closest && (e.target.closest(".pinned-play-btn") || e.target.closest(".pinned-pin-btn") || e.target.closest(".widget-resize-handle"))) return;
+    if (e.target.closest && (e.target.closest(".pinned-play-btn") || e.target.closest(".pinned-pin-btn") || e.target.closest(".pinned-close-btn") || e.target.closest(".widget-resize-handle"))) return;
     e.stopPropagation();
     const t = e.touches[0];
     this.widgetDragStart = {
@@ -3372,16 +3494,16 @@ class ConstellationApp extends Component {
   cycleWidgetSize(e) {
     if (e) e.stopPropagation();
     const sizes = [
-      { width: 330, height: 86 },  // Compact
-      { width: 400, height: 98 },  // Medium
-      { width: 480, height: 146 }, // Large
-      { width: 560, height: 180 }  // Hero Expanded
+      { width: 340, height: 88 },   // Horizontal Compact
+      { width: 420, height: 100 },  // Horizontal Standard
+      { width: 480, height: 140 },  // Horizontal Scrubber
+      { width: 330, height: 430 }   // Vertical Spotify Card
     ];
     const curr = this.state.widgetSize;
     let nextIdx = 0;
-    if (curr.height < 92) nextIdx = 1;
+    if (curr.height < 94) nextIdx = 1;
     else if (curr.height < 120) nextIdx = 2;
-    else if (curr.height < 165) nextIdx = 3;
+    else if (curr.height < 220) nextIdx = 3;
     else nextIdx = 0;
 
     const nextSize = sizes[nextIdx];
@@ -3395,7 +3517,7 @@ class ConstellationApp extends Component {
     } catch (err) {}
   }
 
-  // Dynamic Chroma Palette Applier for Verses, Chorus & Beats
+  // Dynamic Chroma Palette Applier for Verses, Chorus & Beats - Whole Complete Environment Transform
   applyChromaPalette(pal, sectionName) {
     if (!pal) return;
     this.currentChromaPalette = pal;
@@ -3405,10 +3527,31 @@ class ConstellationApp extends Component {
       root.style.setProperty("--const-glow", pal.glow);
       root.style.setProperty("--const-glow-alpha", pal.glow + "38");
       root.style.setProperty("--const-past", pal.past || pal.primary);
+      root.style.setProperty("--const-future", pal.primary + "55");
+
+      // Update ambient stars
+      const ambientStars = root.querySelectorAll(".ambient-star");
+      ambientStars.forEach(st => st.setAttribute("fill", pal.primary));
+
+      // Update stream pop rings
+      const popRings = root.querySelectorAll(".star-node-pop-ring");
+      popRings.forEach(pr => pr.setAttribute("stroke", pal.primary));
+
+      // Update text glow filter floodColor
+      const textGlowDrop = root.querySelector("#text-glow feDropShadow");
+      if (textGlowDrop) textGlowDrop.setAttribute("flood-color", pal.glow);
+
+      // Update SVG nebula / cloud haze
+      const nebulaStops = root.querySelectorAll("#nebula-haze stop, .nebula-radial-stop");
+      nebulaStops.forEach((st, idx) => {
+        if (idx === 0) st.setAttribute("stop-color", pal.primary);
+      });
     }
+
     if (this.progressTrailEl) {
       this.progressTrailEl.setAttribute("stroke", pal.primary);
     }
+
     if (this._beaconGroupEl) {
       const elements = this._beaconGroupEl.querySelectorAll("circle, line");
       elements.forEach(el => {
@@ -3418,10 +3561,11 @@ class ConstellationApp extends Component {
         if (fill && fill !== "none" && fill !== "#ffffff") el.setAttribute("fill", pal.primary);
       });
     }
-    const kickerEl = root ? root.querySelector(".pinned-track-kicker") : null;
-    if (kickerEl && sectionName) {
-      kickerEl.textContent = sectionName.toUpperCase();
-    }
+
+    const kickerEls = root ? root.querySelectorAll(".pinned-track-kicker") : [];
+    kickerEls.forEach(el => {
+      if (sectionName) el.textContent = sectionName.toUpperCase();
+    });
   }
 
   handleWheel(e) {
@@ -4022,23 +4166,26 @@ class ConstellationApp extends Component {
       }),
 
       // Pinned Aesthetic Floating iOS Now Playing Widget (Draggable & Resizable)
-      s.pinTrackInfo !== false && trackInfo && trackInfo.title && (() => {
-        const isTall = this.state.widgetSize && this.state.widgetSize.height >= 125;
+      s.pinTrackInfo !== false && !this.state.isWidgetDismissed && trackInfo && trackInfo.title && (() => {
+        const wWidth = this.state.widgetSize ? this.state.widgetSize.width : 390;
+        const wHeight = this.state.widgetSize ? this.state.widgetSize.height : 96;
+        const isVertical = wHeight >= 180 && wHeight > wWidth * 0.68;
+        const isTall = wHeight >= 120;
         const artSize = isTall
-          ? Math.max(54, Math.min(84, this.state.widgetSize.height - 48))
-          : Math.max(50, Math.min(68, this.state.widgetSize.height - 24));
+          ? Math.max(54, Math.min(84, wHeight - 48))
+          : Math.max(50, Math.min(68, wHeight - 24));
         const duration = trackInfo.durationMs || 180000;
         const progressPct = Math.max(0, Math.min(100, (this.currentSmoothedProgress / duration) * 100));
 
         return react.createElement(
           "div",
           {
-            className: "const-pinned-track-badge" + (this.state.isDraggingWidget ? " is-dragging" : "") + (this.state.isResizingWidget ? " is-resizing" : ""),
+            className: "const-pinned-track-badge" + (isVertical ? " is-vertical-card" : "") + (this.state.isDraggingWidget ? " is-dragging" : "") + (this.state.isResizingWidget ? " is-resizing" : ""),
             style: {
               left: `${this.state.widgetPos.x}px`,
               top: `${this.state.widgetPos.y}px`,
-              width: `${this.state.widgetSize.width}px`,
-              height: `${this.state.widgetSize.height}px`
+              width: `${wWidth}px`,
+              height: `${wHeight}px`
             },
             onMouseDown: this.handleWidgetMouseDown,
             onTouchStart: this.handleWidgetTouchStart,
@@ -4052,25 +4199,82 @@ class ConstellationApp extends Component {
                 window.Spicetify.Platform.History.push({ pathname: `/track/${trackInfo.uri.replace("spotify:track:", "")}` });
               }
             },
-            title: `${trackInfo.title} by ${trackInfo.artist}${trackInfo.album ? ` (${trackInfo.album})` : ""} • Drag to move • Drag corner to resize • Double click pill to cycle sizes`
+            title: `${trackInfo.title} by ${trackInfo.artist}${trackInfo.album ? ` (${trackInfo.album})` : ""} • Double click top pill to cycle sizes`
           },
-          // Double-clickable Pill at top to cycle standard widget sizes
+          // Apple-style Drag Capsule Pill at top (Double-click to cycle standard sizes)
           react.createElement("div", {
             className: "widget-drag-pill",
             onDoubleClick: this.cycleWidgetSize,
-            title: "Double click to cycle standard sizes"
+            title: "Double click to cycle sizes • Drag anywhere to move"
           }),
 
-          // Main horizontal row: Art + Texts + Pin & Play Controls
-          react.createElement(
-            "div",
-            { className: "widget-main-row" },
+          // VERTICAL SPOTIFY NOW PLAYING CARD LAYOUT (When vertically elongated)
+          isVertical ? [
+            // Top card header: Section kicker / eq + Pin and Close buttons
             react.createElement(
               "div",
-              {
-                className: "pinned-track-art-wrapper",
-                style: { width: `${artSize}px`, height: `${artSize}px` }
-              },
+              { key: "card-header", className: "widget-card-header" },
+              react.createElement(
+                "div",
+                { className: "widget-header-left" },
+                react.createElement("span", { className: "pinned-track-kicker" }, "NOW PLAYING"),
+                isPlaying && react.createElement(
+                  "div",
+                  { className: "pinned-equalizer-bars" },
+                  [1, 2, 3, 4].map(b => react.createElement("span", { key: b, className: `eq-bar bar-${b}` }))
+                ),
+                this.state.isWidgetLocked && react.createElement("span", { className: "pinned-drag-hint" }, "🔒 LOCKED")
+              ),
+              react.createElement(
+                "div",
+                { className: "widget-header-right" },
+                // Pin / Lock button
+                react.createElement(
+                  "button",
+                  {
+                    className: "pinned-pin-btn" + (this.state.isWidgetLocked ? " is-pinned" : ""),
+                    title: this.state.isWidgetLocked ? "Unpin / Unlock Position" : "Pin / Lock Position",
+                    onClick: (e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      const nextL = !this.state.isWidgetLocked;
+                      this.setState({ isWidgetLocked: nextL });
+                      try { localStorage.setItem("constellation_widget_locked", String(nextL)); } catch (err) {}
+                    }
+                  },
+                  react.createElement(
+                    "svg",
+                    { width: 13, height: 13, viewBox: "0 0 24 24", fill: this.state.isWidgetLocked ? "currentColor" : "none", stroke: "currentColor", strokeWidth: 2 },
+                    react.createElement("line", { x1: 12, y1: 17, x2: 12, y2: 22 }),
+                    react.createElement("path", { d: "M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.89A2 2 0 0 1 15 10.77V7a3 3 0 0 0-6 0v3.77a2 2 0 0 1-1.11 1.79l-1.78.89A2 2 0 0 0 5 15.24Z" })
+                  )
+                ),
+                // Close button (Dismiss for session, re-enables on restart or from bottom bar)
+                react.createElement(
+                  "button",
+                  {
+                    className: "pinned-close-btn",
+                    title: "Close Now Playing (re-enables on restart or from bottom bar)",
+                    onClick: (e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      this.setState({ isWidgetDismissed: true });
+                    }
+                  },
+                  react.createElement(
+                    "svg",
+                    { width: 12, height: 12, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" },
+                    react.createElement("line", { x1: 18, y1: 6, x2: 6, y2: 18 }),
+                    react.createElement("line", { x1: 6, y1: 6, x2: 18, y2: 18 })
+                  )
+                )
+              )
+            ),
+
+            // Large Center Album Artwork
+            react.createElement(
+              "div",
+              { key: "card-art", className: "widget-vertical-art-wrapper" },
               trackInfo.coverUrl
                 ? react.createElement("img", {
                     src: trackInfo.coverUrl,
@@ -4080,110 +4284,223 @@ class ConstellationApp extends Component {
                 : react.createElement(
                     "div",
                     { className: "pinned-track-art-fallback" },
-                    react.createElement("svg", { width: 26, height: 26, viewBox: "0 0 24 24", fill: s.primaryColor },
+                    react.createElement("svg", { width: 36, height: 36, viewBox: "0 0 24 24", fill: s.primaryColor },
                       react.createElement("path", { d: "M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" })
                     )
                   ),
               react.createElement("div", { className: "pinned-track-art-sheen" })
             ),
+
+            // Bold Track Titles Block
             react.createElement(
               "div",
-              { className: "pinned-track-texts" },
-              react.createElement(
-                "div",
-                { className: "pinned-track-eyebrow" },
-                react.createElement("span", { className: "pinned-track-kicker" }, "NOW PLAYING"),
-                isPlaying && react.createElement(
-                  "div",
-                  { className: "pinned-equalizer-bars" },
-                  [1, 2, 3, 4].map(b => react.createElement("span", { key: b, className: `eq-bar bar-${b}` }))
-                ),
-                react.createElement("span", { className: "pinned-drag-hint" }, this.state.isWidgetLocked ? "🔒 PINNED" : "⠿ DRAG")
-              ),
-              react.createElement("div", { className: "pinned-track-title" }, trackInfo.title),
+              { key: "card-texts", className: "widget-vertical-texts" },
+              react.createElement("div", { className: "pinned-track-title bold-title" }, trackInfo.title),
               react.createElement(
                 "div",
                 { className: "pinned-track-sub" },
-                react.createElement("span", { className: "pinned-track-artist" }, trackInfo.artist),
+                react.createElement("span", { className: "pinned-track-artist bold-artist" }, trackInfo.artist),
                 trackInfo.album && trackInfo.album !== trackInfo.title && react.createElement("span", { className: "pinned-track-album" }, ` • ${trackInfo.album}`)
               )
             ),
-            // Pin title button on badge
+
+            // Bottom Scrubber & Transport Controls
             react.createElement(
-              "button",
-              {
-                className: "pinned-pin-btn" + (this.state.isWidgetLocked ? " is-pinned" : ""),
-                title: this.state.isWidgetLocked ? "Unpin / Unlock Position" : "Pin / Lock Position",
-                onClick: (e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  const nextL = !this.state.isWidgetLocked;
-                  this.setState({ isWidgetLocked: nextL });
-                  try { localStorage.setItem("constellation_widget_locked", String(nextL)); } catch (err) {}
-                }
-              },
+              "div",
+              { key: "card-bottom", className: "widget-vertical-bottom" },
               react.createElement(
-                "svg",
-                { width: 13, height: 13, viewBox: "0 0 24 24", fill: this.state.isWidgetLocked ? "currentColor" : "none", stroke: "currentColor", strokeWidth: 2 },
-                react.createElement("line", { x1: 12, y1: 17, x2: 12, y2: 22 }),
-                react.createElement("path", { d: "M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.89A2 2 0 0 1 15 10.77V7a3 3 0 0 0-6 0v3.77a2 2 0 0 1-1.11 1.79l-1.78.89A2 2 0 0 0 5 15.24Z" })
+                "div",
+                { className: "widget-scrubber-row", style: { marginTop: 0 } },
+                react.createElement(
+                  "div",
+                  { className: "widget-scrub-track" },
+                  react.createElement("div", {
+                    className: "widget-scrub-bar",
+                    style: { width: `${progressPct}%` }
+                  })
+                ),
+                react.createElement(
+                  "div",
+                  { className: "widget-time-labels" },
+                  react.createElement("span", null, formatTimeMs(this.currentSmoothedProgress)),
+                  react.createElement("span", null, formatTimeMs(duration))
+                )
+              ),
+              react.createElement(
+                "div",
+                { className: "widget-vertical-transport" },
+                react.createElement(
+                  "button",
+                  {
+                    className: "widget-vertical-play-btn",
+                    title: isPlaying ? "Pause" : "Play",
+                    onClick: (e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      this.togglePlay();
+                    }
+                  },
+                  isPlaying
+                    ? react.createElement(
+                        "svg",
+                        { width: 18, height: 18, viewBox: "0 0 24 24", fill: "currentColor" },
+                        react.createElement("rect", { x: 6, y: 4, width: 4, height: 16, rx: 1 }),
+                        react.createElement("rect", { x: 14, y: 4, width: 4, height: 16, rx: 1 })
+                      )
+                    : react.createElement(
+                        "svg",
+                        { width: 18, height: 18, viewBox: "0 0 24 24", fill: "currentColor" },
+                        react.createElement("polygon", { points: "7 4 21 12 7 20 7 4" })
+                      )
+                )
+              )
+            )
+          ] : [
+            // HORIZONTAL ROW LAYOUT: Left Artwork + Texts + Controls
+            react.createElement(
+              "div",
+              { key: "horiz-main", className: "widget-main-row" },
+              // Left side Artwork
+              react.createElement(
+                "div",
+                {
+                  className: "pinned-track-art-wrapper",
+                  style: { width: `${artSize}px`, height: `${artSize}px` }
+                },
+                trackInfo.coverUrl
+                  ? react.createElement("img", {
+                      src: trackInfo.coverUrl,
+                      className: "pinned-track-art",
+                      alt: trackInfo.title
+                    })
+                  : react.createElement(
+                      "div",
+                      { className: "pinned-track-art-fallback" },
+                      react.createElement("svg", { width: 26, height: 26, viewBox: "0 0 24 24", fill: s.primaryColor },
+                        react.createElement("path", { d: "M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" })
+                      )
+                    ),
+                react.createElement("div", { className: "pinned-track-art-sheen" })
+              ),
+              // Center Texts
+              react.createElement(
+                "div",
+                { className: "pinned-track-texts" },
+                react.createElement(
+                  "div",
+                  { className: "pinned-track-eyebrow" },
+                  react.createElement("span", { className: "pinned-track-kicker" }, "NOW PLAYING"),
+                  isPlaying && react.createElement(
+                    "div",
+                    { className: "pinned-equalizer-bars" },
+                    [1, 2, 3, 4].map(b => react.createElement("span", { key: b, className: `eq-bar bar-${b}` }))
+                  ),
+                  this.state.isWidgetLocked && react.createElement("span", { className: "pinned-drag-hint" }, "🔒 LOCKED")
+                ),
+                react.createElement("div", { className: "pinned-track-title" }, trackInfo.title),
+                react.createElement(
+                  "div",
+                  { className: "pinned-track-sub" },
+                  react.createElement("span", { className: "pinned-track-artist" }, trackInfo.artist),
+                  trackInfo.album && trackInfo.album !== trackInfo.title && react.createElement("span", { className: "pinned-track-album" }, ` • ${trackInfo.album}`)
+                )
+              ),
+              // Pin title button
+              react.createElement(
+                "button",
+                {
+                  className: "pinned-pin-btn" + (this.state.isWidgetLocked ? " is-pinned" : ""),
+                  title: this.state.isWidgetLocked ? "Unpin / Unlock Position" : "Pin / Lock Position",
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const nextL = !this.state.isWidgetLocked;
+                    this.setState({ isWidgetLocked: nextL });
+                    try { localStorage.setItem("constellation_widget_locked", String(nextL)); } catch (err) {}
+                  }
+                },
+                react.createElement(
+                  "svg",
+                  { width: 13, height: 13, viewBox: "0 0 24 24", fill: this.state.isWidgetLocked ? "currentColor" : "none", stroke: "currentColor", strokeWidth: 2 },
+                  react.createElement("line", { x1: 12, y1: 17, x2: 12, y2: 22 }),
+                  react.createElement("path", { d: "M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.89A2 2 0 0 1 15 10.77V7a3 3 0 0 0-6 0v3.77a2 2 0 0 1-1.11 1.79l-1.78.89A2 2 0 0 0 5 15.24Z" })
+                )
+              ),
+              // Play/Pause button
+              react.createElement(
+                "button",
+                {
+                  className: "pinned-play-btn",
+                  title: isPlaying ? "Pause" : "Play",
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    this.togglePlay();
+                  }
+                },
+                isPlaying
+                  ? react.createElement(
+                    "svg",
+                    { width: 14, height: 14, viewBox: "0 0 24 24", fill: "currentColor" },
+                    react.createElement("rect", { x: 6, y: 4, width: 4, height: 16, rx: 1 }),
+                    react.createElement("rect", { x: 14, y: 4, width: 4, height: 16, rx: 1 })
+                  )
+                  : react.createElement(
+                    "svg",
+                    { width: 14, height: 14, viewBox: "0 0 24 24", fill: "currentColor" },
+                    react.createElement("polygon", { points: "6 4 20 12 6 20 6 4" })
+                  )
+              ),
+              // Close button (Dismiss for session, re-enables on restart or from bottom bar)
+              react.createElement(
+                "button",
+                {
+                  className: "pinned-close-btn",
+                  title: "Close Now Playing (re-enables on restart or from bottom bar)",
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    this.setState({ isWidgetDismissed: true });
+                  }
+                },
+                react.createElement(
+                  "svg",
+                  { width: 12, height: 12, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" },
+                  react.createElement("line", { x1: 18, y1: 6, x2: 6, y2: 18 }),
+                  react.createElement("line", { x1: 6, y1: 6, x2: 18, y2: 18 })
+                )
               )
             ),
-            // Play/Pause button on badge
-            react.createElement(
-              "button",
-              {
-                className: "pinned-play-btn",
-                title: isPlaying ? "Pause" : "Play",
-                onClick: (e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  this.togglePlay();
-                }
-              },
-              isPlaying
-                ? react.createElement(
-                  "svg",
-                  { width: 14, height: 14, viewBox: "0 0 24 24", fill: "currentColor" },
-                  react.createElement("rect", { x: 6, y: 4, width: 4, height: 16, rx: 1 }),
-                  react.createElement("rect", { x: 14, y: 4, width: 4, height: 16, rx: 1 })
-                )
-                : react.createElement(
-                  "svg",
-                  { width: 14, height: 14, viewBox: "0 0 24 24", fill: "currentColor" },
-                  react.createElement("polygon", { points: "6 4 20 12 6 20 6 4" })
-                )
-            )
-          ),
 
-          // Scrubber row when widget is elongated taller
-          isTall && react.createElement(
-            "div",
-            { className: "widget-scrubber-row" },
-            react.createElement(
+            // Scrubber row when horizontal widget is tall enough
+            isTall && react.createElement(
               "div",
-              { className: "widget-scrub-track" },
-              react.createElement("div", {
-                className: "widget-scrub-bar",
-                style: { width: `${progressPct}%` }
-              })
-            ),
-            react.createElement(
-              "div",
-              { className: "widget-time-labels" },
-              react.createElement("span", null, formatTimeMs(this.currentSmoothedProgress)),
-              react.createElement("span", null, formatTimeMs(duration))
+              { key: "horiz-scrub", className: "widget-scrubber-row" },
+              react.createElement(
+                "div",
+                { className: "widget-scrub-track" },
+                react.createElement("div", {
+                  className: "widget-scrub-bar",
+                  style: { width: `${progressPct}%` }
+                })
+              ),
+              react.createElement(
+                "div",
+                { className: "widget-time-labels" },
+                react.createElement("span", null, formatTimeMs(this.currentSmoothedProgress)),
+                react.createElement("span", null, formatTimeMs(duration))
+              )
             )
-          ),
+          ],
 
-          // Corner resize grip (drag to resize width & height freely)
+          // Corner resize handle (Apple style - subtle dot matrix without arrow symbols)
           react.createElement(
             "div",
             {
               className: "widget-resize-handle",
               onMouseDown: this.handleWidgetResizeMouseDown,
               onTouchStart: this.handleWidgetResizeTouchStart,
-              title: "Drag to resize height & width"
+              title: "Resize widget"
             },
             react.createElement(
               "svg",
@@ -4607,17 +4924,22 @@ class ConstellationApp extends Component {
         react.createElement(
           "button",
           {
-            className: `hud-btn ${s.pinTrackInfo !== false ? "active" : ""}`,
-            style: s.pinTrackInfo !== false ? { color: s.primaryColor, borderColor: `${s.primaryColor}88` } : {},
-            title: s.pinTrackInfo !== false ? "Unpin Now Playing Title Island" : "Pin Now Playing Title Island",
+            className: `hud-btn ${s.pinTrackInfo !== false && !this.state.isWidgetDismissed ? "active" : ""}`,
+            style: (s.pinTrackInfo !== false && !this.state.isWidgetDismissed) ? { color: s.primaryColor, borderColor: `${s.primaryColor}88` } : {},
+            title: (s.pinTrackInfo !== false && !this.state.isWidgetDismissed) ? "Unpin / Hide Floating Now Playing Island" : "Pin / Show Floating Now Playing Island",
             onClick: () => {
-              const nextPin = s.pinTrackInfo === false;
-              this.updateSettings({ pinTrackInfo: nextPin });
+              if (this.state.isWidgetDismissed) {
+                this.setState({ isWidgetDismissed: false });
+                this.updateSettings({ pinTrackInfo: true });
+              } else {
+                const nextPin = s.pinTrackInfo === false;
+                this.updateSettings({ pinTrackInfo: nextPin });
+              }
             }
           },
           react.createElement(
             "svg",
-            { width: 13, height: 13, viewBox: "0 0 24 24", fill: s.pinTrackInfo !== false ? "currentColor" : "none", stroke: "currentColor", strokeWidth: 2 },
+            { width: 13, height: 13, viewBox: "0 0 24 24", fill: (s.pinTrackInfo !== false && !this.state.isWidgetDismissed) ? "currentColor" : "none", stroke: "currentColor", strokeWidth: 2 },
             react.createElement("line", { x1: 12, y1: 17, x2: 12, y2: 22 }),
             react.createElement("path", { d: "M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.89A2 2 0 0 1 15 10.77V7a3 3 0 0 0-6 0v3.77a2 2 0 0 1-1.11 1.79l-1.78.89A2 2 0 0 0 5 15.24Z" })
           )

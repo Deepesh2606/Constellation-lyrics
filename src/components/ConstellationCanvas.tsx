@@ -20,6 +20,7 @@ import {
   Sliders,
   Music2,
   Pin,
+  X,
 } from 'lucide-react';
 
 interface ConstellationCanvasProps {
@@ -206,6 +207,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
       return true;
     }
   });
+  const [isWidgetDismissed, setIsWidgetDismissed] = useState(false);
   const [isWidgetLocked, setIsWidgetLocked] = useState(() => {
     try {
       return localStorage.getItem('constellation_widget_locked') === 'true';
@@ -250,15 +252,15 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
   const cycleWidgetSize = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     const sizes = [
-      { width: 330, height: 86 },
-      { width: 400, height: 98 },
-      { width: 480, height: 146 },
-      { width: 560, height: 180 },
+      { width: 340, height: 88 },
+      { width: 420, height: 100 },
+      { width: 480, height: 140 },
+      { width: 330, height: 430 },
     ];
     let nextIdx = 0;
-    if (widgetSize.height < 92) nextIdx = 1;
+    if (widgetSize.height < 94) nextIdx = 1;
     else if (widgetSize.height < 120) nextIdx = 2;
-    else if (widgetSize.height < 165) nextIdx = 3;
+    else if (widgetSize.height < 220) nextIdx = 3;
     else nextIdx = 0;
 
     const next = sizes[nextIdx];
@@ -271,7 +273,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
   const handleWidgetMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
     if (isWidgetLocked) return;
-    if ((e.target as HTMLElement).closest('.pinned-play-btn') || (e.target as HTMLElement).closest('.pinned-pin-btn') || (e.target as HTMLElement).closest('.widget-resize-handle')) return;
+    if ((e.target as HTMLElement).closest('.pinned-play-btn') || (e.target as HTMLElement).closest('.pinned-pin-btn') || (e.target as HTMLElement).closest('.pinned-close-btn') || (e.target as HTMLElement).closest('.widget-resize-handle')) return;
     e.stopPropagation();
     widgetDragStartRef.current = {
       mouseX: e.clientX,
@@ -316,7 +318,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
   const handleWidgetTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length !== 1) return;
     if (isWidgetLocked) return;
-    if ((e.target as HTMLElement).closest('.pinned-play-btn') || (e.target as HTMLElement).closest('.pinned-pin-btn') || (e.target as HTMLElement).closest('.widget-resize-handle')) return;
+    if ((e.target as HTMLElement).closest('.pinned-play-btn') || (e.target as HTMLElement).closest('.pinned-pin-btn') || (e.target as HTMLElement).closest('.pinned-close-btn') || (e.target as HTMLElement).closest('.widget-resize-handle')) return;
     e.stopPropagation();
     const touch = e.touches[0];
     widgetDragStartRef.current = {
@@ -568,27 +570,28 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
   const activeChroma = useMemo(() => {
     const secName = (activeSection?.name || '').toLowerCase();
     if (secName.includes('chorus')) {
-      if (secName.includes('2')) return { primary: '#d946ef', glow: '#a855f7', name: 'Chorus 2' };
-      return { primary: '#ff2a85', glow: '#f43f5e', name: 'Chorus' };
+      if (secName.includes('2')) return { primary: '#d946ef', glow: '#a855f7', past: '#f0abfc', name: 'Chorus 2' };
+      return { primary: '#ff2a85', glow: '#f43f5e', past: '#fda4af', name: 'Chorus' };
     }
     if (secName.includes('drop') || secName.includes('hook')) {
-      return { primary: '#ff3366', glow: '#ff0055', name: 'Drop' };
+      return { primary: '#ff3366', glow: '#ff0055', past: '#fca5a5', name: 'Drop' };
     }
     if (secName.includes('verse 2')) {
-      return { primary: '#10b981', glow: '#34d399', name: 'Verse 2' };
+      return { primary: '#10b981', glow: '#34d399', past: '#6ee7b7', name: 'Verse 2' };
     }
     if (secName.includes('verse 3')) {
-      return { primary: '#fbbf24', glow: '#f59e0b', name: 'Verse 3' };
+      return { primary: '#fbbf24', glow: '#f59e0b', past: '#fde68a', name: 'Verse 3' };
     }
     if (secName.includes('bridge') || secName.includes('solo')) {
-      return { primary: '#a855f7', glow: '#8b5cf6', name: 'Bridge' };
+      return { primary: '#a855f7', glow: '#8b5cf6', past: '#d8b4fe', name: 'Bridge' };
     }
     return {
       primary: settings.primaryColor,
       glow: settings.glowColor,
+      past: settings.pastColor,
       name: activeSection?.name || 'Now Playing',
     };
-  }, [activeSection, settings.primaryColor, settings.glowColor]);
+  }, [activeSection, settings.primaryColor, settings.glowColor, settings.pastColor]);
 
   // Ultra-smooth 60/120 FPS continuous linear positioning loop
   useEffect(() => {
@@ -770,13 +773,13 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
               dx="0"
               dy="0"
               stdDeviation={glowStdDev * 0.8}
-              floodColor={settings.glowColor}
+              floodColor={activeChroma.glow}
               floodOpacity={hasGlow ? '0.9' : '0'}
             />
           </filter>
 
           <radialGradient id="nebula-haze" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor={settings.primaryColor} stopOpacity="0.06" />
+            <stop offset="0%" stopColor={activeChroma.primary} stopOpacity="0.12" />
             <stop offset="70%" stopColor={settings.bgColor} stopOpacity="0" />
           </radialGradient>
 
@@ -810,7 +813,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                   cx={star.x}
                   cy={star.y}
                   r={star.r}
-                  fill={settings.primaryColor}
+                  fill={activeChroma.primary}
                   opacity={op.toFixed(3)}
                 />
               );
@@ -827,21 +830,22 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                 currentTimeMs >= node.prevNode.startTime && currentTimeMs < node.endTime;
               const lineDistFromActive = Math.abs(node.lineIndex - activeLineIdx);
 
-              let lineOpacity = 0.15;
-              let strokeColor = `${settings.primaryColor}26`;
+              let lineOpacity = 0.22;
+              let strokeColor = `${activeChroma.primary}33`;
               let strokeWidth = 1.1;
 
               if (node.lineIndex < activeLineIdx - 2) {
                 // Fade out older lines
                 const age = activeLineIdx - node.lineIndex;
                 lineOpacity = Math.max(0.02, 0.14 - age * 0.04);
+                strokeColor = `${activeChroma.past || activeChroma.primary}25`;
               } else if (isActiveLine) {
                 lineOpacity = 0.95;
-                strokeColor = settings.primaryColor;
+                strokeColor = activeChroma.primary;
                 strokeWidth = 2.4;
               } else if (isPast) {
                 lineOpacity = Math.max(0.25, 0.7 - lineDistFromActive * 0.18);
-                strokeColor = `${settings.pastColor}cc`;
+                strokeColor = `${activeChroma.past || activeChroma.primary}cc`;
                 strokeWidth = 1.4;
               }
 
@@ -1027,18 +1031,18 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                 if (isWordPast) {
                   starRadius = 4.0;
                   starOpacity = 0.9;
-                  starFill = settings.pastColor;
+                  starFill = activeChroma.past || activeChroma.primary;
                   textOpacity = 0.95;
-                  textColor = settings.pastColor;
+                  textColor = activeChroma.past || activeChroma.primary;
                   wordFontSize = settings.fontSize;
                   currentWeight = Math.max(500, fontWeightNum - 100);
                 } else {
                   // Upcoming words in current line
                   starRadius = 3.2;
-                  starOpacity = 0.65;
-                  starFill = `${settings.primaryColor}99`;
-                  textOpacity = 0.7;
-                  textColor = `${settings.primaryColor}cc`;
+                  starOpacity = 0.7;
+                  starFill = `${activeChroma.primary}99`;
+                  textOpacity = 0.75;
+                  textColor = `${activeChroma.primary}cc`;
                   wordFontSize = settings.fontSize * 0.95;
                   currentWeight = 500;
                 }
@@ -1047,16 +1051,16 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                 const age = activeLineIdx - node.lineIndex;
                 starOpacity = Math.max(0.04, 0.35 - age * 0.1);
                 textOpacity = Math.max(0.04, 0.4 - age * 0.12);
-                starFill = `${settings.pastColor}40`;
-                textColor = `${settings.pastColor}88`;
+                starFill = `${activeChroma.past || activeChroma.primary}40`;
+                textColor = `${activeChroma.past || activeChroma.primary}88`;
                 starRadius = 2.2;
               } else {
                 // Future upcoming lines
                 const distance = node.lineIndex - activeLineIdx;
                 starOpacity = Math.max(0.12, 0.35 - distance * 0.08);
                 textOpacity = Math.max(0.12, 0.4 - distance * 0.08);
-                starFill = `${settings.futureColor}40`;
-                textColor = settings.futureColor;
+                starFill = `${activeChroma.primary}44`;
+                textColor = `${activeChroma.primary}99`;
                 starRadius = 2.0;
               }
 
@@ -1073,8 +1077,8 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                   textOpacity = Math.max(textOpacity, 0.85);
                   wordFontSize = Math.max(wordFontSize, settings.fontSize * 1.05);
                   currentWeight = Math.max(currentWeight, 700);
-                  starFill = settings.primaryColor;
-                  textColor = settings.primaryColor;
+                  starFill = activeChroma.primary;
+                  textColor = activeChroma.primary;
                 }
               }
 
@@ -1094,7 +1098,7 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
                       cy={node.y}
                       r={isWordActive ? 15 : 10}
                       fill="none"
-                      stroke={settings.primaryColor}
+                      stroke={activeChroma.primary}
                       strokeWidth={isWordActive ? 2 : 1.2}
                       strokeDasharray={isWordActive ? undefined : '2 2'}
                       opacity={isWordActive ? 1 : 0.45}
@@ -1221,8 +1225,9 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
       )}
 
       {/* Aesthetic Floating iOS Now Playing Widget (Draggable & Resizable) */}
-      {isPinned && trackTitle && (() => {
-        const isTall = widgetSize.height >= 125;
+      {isPinned && !isWidgetDismissed && trackTitle && (() => {
+        const isVertical = widgetSize.height >= 180 && widgetSize.height > widgetSize.width * 0.68;
+        const isTall = widgetSize.height >= 120;
         const artSize = isTall
           ? Math.max(54, Math.min(84, widgetSize.height - 48))
           : Math.max(50, Math.min(68, widgetSize.height - 24));
@@ -1233,12 +1238,12 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
           <div
             onMouseDown={handleWidgetMouseDown}
             onTouchStart={handleWidgetTouchStart}
-            className={`absolute z-30 flex flex-col justify-center px-4 py-3 rounded-[26px] backdrop-blur-2xl bg-[#0c0e18]/88 border border-white/15 select-none transition-[box-shadow,border-color,background] touch-none overflow-hidden ${
+            className={`absolute z-30 flex flex-col justify-between px-4 py-3 rounded-[28px] backdrop-blur-2xl bg-[#0a0c14]/90 border border-white/18 select-none transition-[box-shadow,border-color,background] touch-none overflow-hidden ${
               isDraggingWidget
                 ? 'cursor-grabbing scale-[1.025] border-white/35 shadow-[0_38px_85px_rgba(0,0,0,0.92)]'
                 : isResizingWidget
                 ? 'cursor-nwse-resize border-white/40 shadow-[0_36px_85px_rgba(0,0,0,0.9)]'
-                : 'cursor-grab hover:border-white/25 shadow-[0_22px_55px_rgba(0,0,0,0.72)]'
+                : 'cursor-grab hover:border-white/25 shadow-[0_24px_60px_rgba(0,0,0,0.75)]'
             }`}
             style={{
               left: widgetPos.x,
@@ -1247,137 +1252,293 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
               height: widgetSize.height,
               boxShadow: isDraggingWidget || isResizingWidget
                 ? `0 36px 85px rgba(0,0,0,0.92), 0 0 45px ${activeChroma.glow}50, inset 0 1px 2px rgba(255,255,255,0.35)`
-                : `0 22px 55px rgba(0,0,0,0.72), 0 0 35px ${activeChroma.glow}25, inset 0 1px 1.5px rgba(255,255,255,0.2)`,
+                : `0 24px 60px rgba(0,0,0,0.75), 0 0 35px ${activeChroma.glow}25, inset 0 1px 1.5px rgba(255,255,255,0.2)`,
             }}
-            title={`${trackTitle} by ${trackArtist}${trackAlbum ? ` (${trackAlbum})` : ''} • Drag to move • Drag corner to resize • Double click pill to cycle sizes`}
+            title={`${trackTitle} by ${trackArtist}${trackAlbum ? ` (${trackAlbum})` : ''} • Double click top pill to cycle sizes`}
           >
-            {/* iOS Top Drag Pill (Double-click cycles preset widget sizes) */}
+            {/* Apple-style Drag Capsule Pill at top (Double-click to cycle standard sizes) */}
             <div
               onDoubleClick={cycleWidgetSize}
-              className="absolute top-1.5 left-1/2 -translate-x-1/2 w-9 h-1 rounded-full bg-white/25 cursor-pointer transition-all hover:bg-white/55 hover:w-12 z-10"
-              title="Double-click to cycle widget sizes"
+              className="absolute top-1.5 left-1/2 -translate-x-1/2 w-9 h-1 rounded-full bg-white/30 cursor-pointer transition-all hover:bg-white/60 hover:w-12 z-10"
+              title="Double-click to cycle sizes • Drag anywhere to move"
             />
 
-            {/* Main horizontal row: Art + Texts + Pin & Play Controls */}
-            <div className="flex items-center gap-3.5 w-full h-full">
-              {/* Cover Art with Gloss Sheen & Glow */}
-              <div
-                className="relative rounded-[18px] overflow-hidden shrink-0 shadow-lg border border-white/15 bg-neutral-900 transition-all"
-                style={{ width: artSize, height: artSize }}
-              >
-                {coverUrl ? (
-                  <img src={coverUrl} alt={trackTitle} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-white/5 flex items-center justify-center">
-                    <Music2 className="w-6 h-6" style={{ color: activeChroma.primary }} />
+            {/* VERTICAL SPOTIFY NOW PLAYING CARD LAYOUT (When vertically elongated) */}
+            {isVertical ? (
+              <div className="flex flex-col justify-between w-full h-full pt-1.5 pb-0.5">
+                {/* Header row: Section kicker + Lock and Close buttons */}
+                <div className="flex items-center justify-between w-full mb-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="text-[10.5px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border transition-colors"
+                      style={{
+                        color: activeChroma.primary,
+                        borderColor: `${activeChroma.primary}44`,
+                        backgroundColor: `${activeChroma.primary}18`,
+                        textShadow: `0 0 10px ${activeChroma.glow}88`,
+                      }}
+                    >
+                      ✦ {activeChroma.name.toUpperCase()}
+                    </span>
+                    {isPlaying && (
+                      <div className="flex items-end gap-0.5 h-3">
+                        <span className="w-0.5 h-1 rounded-full animate-bounce" style={{ backgroundColor: activeChroma.primary }} />
+                        <span className="w-0.5 h-3 rounded-full animate-bounce [animation-delay:0.15s]" style={{ backgroundColor: activeChroma.primary }} />
+                        <span className="w-0.5 h-2 rounded-full animate-bounce [animation-delay:0.3s]" style={{ backgroundColor: activeChroma.primary }} />
+                        <span className="w-0.5 h-2.5 rounded-full animate-bounce [animation-delay:0.45s]" style={{ backgroundColor: activeChroma.primary }} />
+                      </div>
+                    )}
+                    {isWidgetLocked && (
+                      <span className="text-[9.5px] font-bold text-white/40 tracking-wider">🔒 LOCKED</span>
+                    )}
                   </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent pointer-events-none" />
-              </div>
 
-              {/* Texts & Equalizer */}
-              <div className="flex flex-col min-w-0 pr-1 flex-1 overflow-hidden">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span
-                    className="text-[10px] font-black uppercase tracking-widest transition-colors"
-                    style={{
-                      color: activeChroma.primary,
-                      textShadow: `0 0 10px ${activeChroma.glow}88`,
-                    }}
-                  >
-                    {activeChroma.name.toUpperCase()}
-                  </span>
-                  {isPlaying && (
-                    <div className="flex items-end gap-0.5 h-3">
-                      <span className="w-0.5 h-1 rounded-full animate-bounce" style={{ backgroundColor: activeChroma.primary }} />
-                      <span className="w-0.5 h-3 rounded-full animate-bounce [animation-delay:0.15s]" style={{ backgroundColor: activeChroma.primary }} />
-                      <span className="w-0.5 h-2 rounded-full animate-bounce [animation-delay:0.3s]" style={{ backgroundColor: activeChroma.primary }} />
-                      <span className="w-0.5 h-2.5 rounded-full animate-bounce [animation-delay:0.45s]" style={{ backgroundColor: activeChroma.primary }} />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Pin / Lock Button */}
+                    <button
+                      type="button"
+                      className={`pinned-pin-btn w-7 h-7 rounded-full flex items-center justify-center border transition-all hover:scale-105 active:scale-95 cursor-pointer ${
+                        isWidgetLocked
+                          ? 'bg-white/20 border-white/30 text-white'
+                          : 'bg-white/5 border-white/10 text-white/60 hover:text-white'
+                      }`}
+                      style={isWidgetLocked ? { color: activeChroma.primary, borderColor: `${activeChroma.primary}88` } : {}}
+                      title={isWidgetLocked ? 'Unpin / Unlock Position' : 'Pin / Lock Position'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsWidgetLocked((curr) => {
+                          const next = !curr;
+                          try { localStorage.setItem('constellation_widget_locked', String(next)); } catch (err) {}
+                          return next;
+                        });
+                      }}
+                    >
+                      <Pin className={`w-3.5 h-3.5 ${isWidgetLocked ? 'fill-current' : ''}`} />
+                    </button>
+
+                    {/* Close Button */}
+                    <button
+                      type="button"
+                      className="pinned-close-btn w-7 h-7 rounded-full flex items-center justify-center bg-white/10 hover:bg-red-500/25 border border-white/15 hover:border-red-500/50 text-white/70 hover:text-red-400 transition-all cursor-pointer"
+                      title="Close Now Playing (re-enables on restart or from bottom bar)"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsWidgetDismissed(true);
+                      }}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Center Large Square Album Artwork */}
+                <div className="relative w-full aspect-square rounded-[20px] overflow-hidden my-auto max-h-[calc(100%-150px)] shadow-2xl border border-white/18 bg-neutral-900 flex-shrink-1">
+                  {coverUrl ? (
+                    <img src={coverUrl} alt={trackTitle} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-white/5 flex items-center justify-center">
+                      <Music2 className="w-10 h-10" style={{ color: activeChroma.primary }} />
                     </div>
                   )}
-                  <span className="ml-auto text-[9px] font-bold text-white/30 tracking-wider uppercase">
-                    {isWidgetLocked ? '🔒 Locked' : '⠿ Drag'}
-                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent pointer-events-none" />
                 </div>
-                <div className="text-[16px] font-black text-white truncate max-w-[240px] sm:max-w-xs leading-tight tracking-tight">
-                  {trackTitle}
+
+                {/* Bold Track Titles Block */}
+                <div className="flex flex-col w-full text-left mt-2 overflow-hidden">
+                  <div className="text-[21px] font-black text-white truncate leading-tight tracking-tight drop-shadow-md">
+                    {trackTitle}
+                  </div>
+                  <div className="text-[14.5px] text-neutral-200 truncate font-bold leading-snug mt-0.5">
+                    {trackArtist}
+                    {trackAlbum && trackAlbum !== trackTitle && (
+                      <span className="text-neutral-400 text-xs font-normal ml-1.5">• {trackAlbum}</span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-[12.5px] text-neutral-300 truncate max-w-[240px] sm:max-w-xs font-semibold leading-snug">
-                  {trackArtist}
-                  {trackAlbum && trackAlbum !== trackTitle && (
-                    <span className="text-neutral-500 text-[11px] font-normal ml-1.5">• {trackAlbum}</span>
+
+                {/* Bottom Scrubber & Transport Controls */}
+                <div className="flex flex-col gap-2 w-full mt-2">
+                  <div className="w-full flex flex-col gap-1 pointer-events-none">
+                    <div className="w-full h-1 bg-white/15 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-[width] duration-150"
+                        style={{
+                          width: `${progressPct}%`,
+                          backgroundColor: activeChroma.primary,
+                          boxShadow: `0 0 8px ${activeChroma.glow}`,
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] font-semibold text-white/50 tabular-nums">
+                      <span>{Math.floor(currentTimeMs / 60000)}:{Math.floor((currentTimeMs % 60000) / 1000).toString().padStart(2, '0')}</span>
+                      <span>{Math.floor(duration / 60000)}:{Math.floor((duration % 60000) / 1000).toString().padStart(2, '0')}</span>
+                    </div>
+                  </div>
+
+                  {onTogglePlay && (
+                    <div className="flex items-center justify-center w-full">
+                      <button
+                        type="button"
+                        className="w-11 h-11 rounded-full flex items-center justify-center text-black font-bold transition-all hover:scale-105 active:scale-95 shadow-lg cursor-pointer"
+                        style={{
+                          backgroundColor: activeChroma.primary,
+                          boxShadow: `0 0 16px ${activeChroma.glow}`,
+                        }}
+                        title={isPlaying ? 'Pause' : 'Play'}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onTogglePlay();
+                        }}
+                      >
+                        {isPlaying ? (
+                          <Pause className="w-5 h-5 fill-current text-black" />
+                        ) : (
+                          <Play className="w-5 h-5 fill-current text-black ml-0.5" />
+                        )}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
-
-              {/* Pin / Lock Button on Badge */}
-              <button
-                type="button"
-                className={`pinned-pin-btn w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:scale-105 active:scale-95 shrink-0 ml-1 cursor-pointer ${
-                  isWidgetLocked
-                    ? 'bg-white/20 border-white/30 text-white'
-                    : 'bg-white/5 border-white/10 text-white/50 hover:text-white'
-                }`}
-                style={isWidgetLocked ? { color: activeChroma.primary, borderColor: `${activeChroma.primary}88` } : {}}
-                title={isWidgetLocked ? 'Unpin / Unlock Position' : 'Pin / Lock Position'}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsWidgetLocked((curr) => {
-                    const next = !curr;
-                    try { localStorage.setItem('constellation_widget_locked', String(next)); } catch (err) {}
-                    return next;
-                  });
-                }}
-              >
-                <Pin className={`w-3.5 h-3.5 ${isWidgetLocked ? 'fill-current' : ''}`} />
-              </button>
-
-              {/* Quick Play/Pause Action Button */}
-              {onTogglePlay && (
-                <button
-                  type="button"
-                  className="pinned-play-btn w-9 h-9 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all hover:scale-105 active:scale-95 shrink-0 ml-1 cursor-pointer"
-                  title={isPlaying ? 'Pause' : 'Play'}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTogglePlay();
-                  }}
-                >
-                  {isPlaying ? (
-                    <Pause className="w-4 h-4 fill-current" />
-                  ) : (
-                    <Play className="w-4 h-4 fill-current ml-0.5" />
-                  )}
-                </button>
-              )}
-            </div>
-
-            {/* Scrubber row when widget is elongated taller */}
-            {isTall && (
-              <div className="w-full flex flex-col gap-1 mt-2 pointer-events-none">
-                <div className="w-full h-1 bg-white/15 rounded-full overflow-hidden">
+            ) : (
+              /* HORIZONTAL ROW LAYOUT: Left Artwork + Texts + Controls */
+              <div className="flex flex-col justify-center w-full h-full">
+                <div className="flex items-center gap-3.5 w-full">
+                  {/* Left Side Cover Art */}
                   <div
-                    className="h-full rounded-full transition-[width] duration-150"
-                    style={{
-                      width: `${progressPct}%`,
-                      backgroundColor: activeChroma.primary,
-                      boxShadow: `0 0 8px ${activeChroma.glow}`,
+                    className="relative rounded-[18px] overflow-hidden shrink-0 shadow-lg border border-white/18 bg-neutral-900 transition-all"
+                    style={{ width: artSize, height: artSize }}
+                  >
+                    {coverUrl ? (
+                      <img src={coverUrl} alt={trackTitle} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-white/5 flex items-center justify-center">
+                        <Music2 className="w-6 h-6" style={{ color: activeChroma.primary }} />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent pointer-events-none" />
+                  </div>
+
+                  {/* Texts & Equalizer */}
+                  <div className="flex flex-col min-w-0 pr-1 flex-1 overflow-hidden">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span
+                        className="text-[10px] font-black uppercase tracking-widest transition-colors"
+                        style={{
+                          color: activeChroma.primary,
+                          textShadow: `0 0 10px ${activeChroma.glow}88`,
+                        }}
+                      >
+                        {activeChroma.name.toUpperCase()}
+                      </span>
+                      {isPlaying && (
+                        <div className="flex items-end gap-0.5 h-3">
+                          <span className="w-0.5 h-1 rounded-full animate-bounce" style={{ backgroundColor: activeChroma.primary }} />
+                          <span className="w-0.5 h-3 rounded-full animate-bounce [animation-delay:0.15s]" style={{ backgroundColor: activeChroma.primary }} />
+                          <span className="w-0.5 h-2 rounded-full animate-bounce [animation-delay:0.3s]" style={{ backgroundColor: activeChroma.primary }} />
+                          <span className="w-0.5 h-2.5 rounded-full animate-bounce [animation-delay:0.45s]" style={{ backgroundColor: activeChroma.primary }} />
+                        </div>
+                      )}
+                      {isWidgetLocked && (
+                        <span className="ml-auto text-[9px] font-bold text-white/35 tracking-wider uppercase">
+                          🔒 LOCKED
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[17px] font-black text-white truncate max-w-[240px] sm:max-w-xs leading-tight tracking-tight">
+                      {trackTitle}
+                    </div>
+                    <div className="text-[13px] text-neutral-200 truncate max-w-[240px] sm:max-w-xs font-bold leading-snug">
+                      {trackArtist}
+                      {trackAlbum && trackAlbum !== trackTitle && (
+                        <span className="text-neutral-400 text-[11.5px] font-normal ml-1.5">• {trackAlbum}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Pin / Lock Button on Badge */}
+                  <button
+                    type="button"
+                    className={`pinned-pin-btn w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:scale-105 active:scale-95 shrink-0 ml-1 cursor-pointer ${
+                      isWidgetLocked
+                        ? 'bg-white/20 border-white/30 text-white'
+                        : 'bg-white/5 border-white/10 text-white/60 hover:text-white'
+                    }`}
+                    style={isWidgetLocked ? { color: activeChroma.primary, borderColor: `${activeChroma.primary}88` } : {}}
+                    title={isWidgetLocked ? 'Unpin / Unlock Position' : 'Pin / Lock Position'}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsWidgetLocked((curr) => {
+                        const next = !curr;
+                        try { localStorage.setItem('constellation_widget_locked', String(next)); } catch (err) {}
+                        return next;
+                      });
                     }}
-                  />
+                  >
+                    <Pin className={`w-3.5 h-3.5 ${isWidgetLocked ? 'fill-current' : ''}`} />
+                  </button>
+
+                  {/* Quick Play/Pause Action Button */}
+                  {onTogglePlay && (
+                    <button
+                      type="button"
+                      className="pinned-play-btn w-9 h-9 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all hover:scale-105 active:scale-95 shrink-0 ml-1 cursor-pointer"
+                      title={isPlaying ? 'Pause' : 'Play'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTogglePlay();
+                      }}
+                    >
+                      {isPlaying ? (
+                        <Pause className="w-4 h-4 fill-current" />
+                      ) : (
+                        <Play className="w-4 h-4 fill-current ml-0.5" />
+                      )}
+                    </button>
+                  )}
+
+                  {/* Close Button */}
+                  <button
+                    type="button"
+                    className="pinned-close-btn w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-red-500/25 border border-white/15 hover:border-red-500/50 text-white/70 hover:text-red-400 transition-all shrink-0 ml-1 cursor-pointer"
+                    title="Close Now Playing (re-enables on restart or from bottom bar)"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsWidgetDismissed(true);
+                    }}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <div className="flex justify-between text-[9.5px] font-semibold text-white/45 tabular-nums">
-                  <span>{Math.floor(currentTimeMs / 60000)}:{Math.floor((currentTimeMs % 60000) / 1000).toString().padStart(2, '0')}</span>
-                  <span>{Math.floor(duration / 60000)}:{Math.floor((duration % 60000) / 1000).toString().padStart(2, '0')}</span>
-                </div>
+
+                {/* Scrubber row when widget is horizontal and tall enough */}
+                {isTall && (
+                  <div className="w-full flex flex-col gap-1 mt-2 pointer-events-none">
+                    <div className="w-full h-1 bg-white/15 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-[width] duration-150"
+                        style={{
+                          width: `${progressPct}%`,
+                          backgroundColor: activeChroma.primary,
+                          boxShadow: `0 0 8px ${activeChroma.glow}`,
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[9.5px] font-semibold text-white/45 tabular-nums">
+                      <span>{Math.floor(currentTimeMs / 60000)}:{Math.floor((currentTimeMs % 60000) / 1000).toString().padStart(2, '0')}</span>
+                      <span>{Math.floor(duration / 60000)}:{Math.floor((duration % 60000) / 1000).toString().padStart(2, '0')}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Corner Resize Handle (Drag to freely elongate width or increase height) */}
+            {/* Corner Resize Handle (Apple style - subtle dot matrix without arrow symbols) */}
             <div
               onMouseDown={handleWidgetResizeMouseDown}
               onTouchStart={handleWidgetResizeTouchStart}
               className="absolute bottom-1 right-1 w-4 h-4 cursor-nwse-resize flex items-center justify-center text-white/35 hover:text-white hover:scale-125 transition-all z-20"
-              title="Drag to resize height & width"
+              title="Resize widget"
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
                 <circle cx="8.5" cy="1.5" r="1" />
@@ -1396,8 +1557,8 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
       <div
         className="constellation-bottom-bar absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-2.5 bg-neutral-950/90 backdrop-blur-xl border rounded-full shadow-2xl z-20 pointer-events-auto max-w-[90%] transition-all"
         style={{
-          borderColor: `${settings.primaryColor}55`,
-          boxShadow: `0 8px 32px rgba(0,0,0,0.8), 0 0 16px ${settings.glowColor}25`,
+          borderColor: `${activeChroma.primary}55`,
+          boxShadow: `0 8px 32px rgba(0,0,0,0.8), 0 0 18px ${activeChroma.glow}30`,
         }}
       >
         {/* Cover Art in bottom bar */}
@@ -1418,8 +1579,8 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
             }}
             className="w-8 h-8 rounded-full text-black flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-md shrink-0 font-bold"
             style={{
-              backgroundColor: settings.primaryColor,
-              boxShadow: `0 0 12px ${settings.glowColor}66`,
+              backgroundColor: activeChroma.primary,
+              boxShadow: `0 0 12px ${activeChroma.glow}66`,
             }}
             title={isPlaying ? 'Pause' : 'Play'}
           >
@@ -1433,20 +1594,20 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
 
         {/* Track Title and Artist */}
         <div className="flex flex-col overflow-hidden max-w-[220px] sm:max-w-xs">
-          <div className="text-xs sm:text-sm font-semibold text-white truncate flex items-center gap-1.5">
+          <div className="text-xs sm:text-sm font-bold text-white truncate flex items-center gap-1.5">
             <span
               className={`inline-block w-2 h-2 rounded-full shrink-0 ${
                 isPlaying ? 'animate-pulse' : 'opacity-60'
               }`}
               style={{
-                backgroundColor: settings.primaryColor,
-                boxShadow: `0 0 6px ${settings.glowColor}`,
+                backgroundColor: activeChroma.primary,
+                boxShadow: `0 0 6px ${activeChroma.glow}`,
               }}
             />
             <span className="truncate">{trackTitle || 'Waiting for playback'}</span>
           </div>
           {trackArtist && (
-            <div className="text-[11px] text-neutral-400 truncate pl-3.5">{trackArtist}</div>
+            <div className="text-[11px] font-semibold text-neutral-300 truncate pl-3.5">{trackArtist}</div>
           )}
         </div>
 
@@ -1468,21 +1629,26 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            setIsPinned((curr) => {
-              const next = !curr;
-              try {
-                localStorage.setItem('constellation_pin_title', String(next));
-              } catch (err) {}
-              return next;
-            });
+            if (isWidgetDismissed) {
+              setIsWidgetDismissed(false);
+              setIsPinned(true);
+            } else {
+              setIsPinned((curr) => {
+                const next = !curr;
+                try {
+                  localStorage.setItem('constellation_pin_title', String(next));
+                } catch (err) {}
+                return next;
+              });
+            }
           }}
           className={`p-1.5 rounded-full hover:bg-neutral-800 transition-colors ${
-            isPinned ? 'text-white' : 'text-neutral-500 hover:text-neutral-300'
+            isPinned && !isWidgetDismissed ? 'text-white' : 'text-neutral-500 hover:text-neutral-300'
           }`}
-          style={isPinned ? { color: activeChroma.primary } : {}}
-          title={isPinned ? 'Unpin Floating Title Island' : 'Pin Floating Title Island'}
+          style={isPinned && !isWidgetDismissed ? { color: activeChroma.primary } : {}}
+          title={isPinned && !isWidgetDismissed ? 'Unpin / Hide Floating Title Island' : 'Pin / Show Floating Title Island'}
         >
-          <Pin className={`w-4 h-4 ${isPinned ? 'fill-current' : ''}`} />
+          <Pin className={`w-4 h-4 ${isPinned && !isWidgetDismissed ? 'fill-current' : ''}`} />
         </button>
 
         {/* Search Songs shortcut */}
