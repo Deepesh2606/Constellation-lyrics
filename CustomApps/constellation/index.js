@@ -1283,43 +1283,66 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       stroke-opacity: 0.12;
     }
 
-    /* Aesthetic Floating Now Playing Island */
+    /* Aesthetic Floating iOS Now Playing Widget */
     .const-pinned-track-badge {
       position: absolute;
-      top: 24px;
-      left: 24px;
       display: flex;
       align-items: center;
-      gap: 14px;
-      padding: 10px 18px 10px 10px;
-      background: rgba(10, 11, 16, 0.72);
-      backdrop-filter: blur(32px) saturate(190%);
-      -webkit-backdrop-filter: blur(32px) saturate(190%);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 20px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 35px ${s.glowColor}1c;
-      z-index: 25;
+      gap: 16px;
+      padding: 14px 18px 14px 14px;
+      background: rgba(12, 14, 22, 0.85);
+      backdrop-filter: blur(40px) saturate(210%);
+      -webkit-backdrop-filter: blur(40px) saturate(210%);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 26px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 35px ${s.glowColor}25, inset 0 1px 1.5px rgba(255, 255, 255, 0.22);
+      z-index: 35;
       user-select: none;
       pointer-events: auto;
-      max-width: 440px;
-      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-      cursor: pointer;
+      max-width: 460px;
+      min-width: 330px;
+      cursor: grab;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+      touch-action: none;
     }
     .const-pinned-track-badge:hover {
-      background: rgba(14, 16, 24, 0.9);
-      border-color: rgba(255, 255, 255, 0.22);
-      transform: translateY(-2px) scale(1.02);
-      box-shadow: 0 26px 60px rgba(0, 0, 0, 0.75), 0 0 45px ${s.glowColor}30;
+      background: rgba(16, 18, 28, 0.94);
+      border-color: rgba(255, 255, 255, 0.28);
+      box-shadow: 0 30px 75px rgba(0, 0, 0, 0.82), 0 0 45px ${s.glowColor}38, inset 0 1px 2px rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+    .const-pinned-track-badge.is-dragging {
+      cursor: grabbing !important;
+      transform: scale(1.035) !important;
+      box-shadow: 0 38px 85px rgba(0, 0, 0, 0.92), 0 0 55px ${s.glowColor}50, inset 0 1px 2px rgba(255, 255, 255, 0.4) !important;
+      transition: none !important;
+    }
+    .widget-drag-pill {
+      position: absolute;
+      top: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 38px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.25);
+      border-radius: 999px;
+      pointer-events: none;
+      transition: all 0.25s ease;
+    }
+    .const-pinned-track-badge:hover .widget-drag-pill {
+      background: rgba(255, 255, 255, 0.55);
+      width: 48px;
     }
     .pinned-track-art-wrapper {
       position: relative;
-      width: 54px;
-      height: 54px;
-      border-radius: 14px;
+      width: 66px;
+      height: 66px;
+      border-radius: 18px;
       overflow: hidden;
       flex-shrink: 0;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5), 0 0 16px ${s.primaryColor}26;
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6), 0 0 20px ${s.primaryColor}33;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: #0f111a;
     }
     .pinned-track-art {
       width: 100%;
@@ -1329,12 +1352,12 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       transition: transform 0.4s ease;
     }
     .const-pinned-track-badge:hover .pinned-track-art {
-      transform: scale(1.08);
+      transform: scale(1.06);
     }
     .pinned-track-art-fallback {
       width: 100%;
       height: 100%;
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.06);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1342,62 +1365,74 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
     .pinned-track-art-sheen {
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, rgba(255,255,255,0.22) 0%, transparent 60%);
+      background: linear-gradient(135deg, rgba(255,255,255,0.28) 0%, transparent 60%);
       pointer-events: none;
-      border-radius: 14px;
+      border-radius: 18px;
     }
     .pinned-track-texts {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 3px;
       min-width: 0;
+      flex: 1;
       overflow: hidden;
     }
     .pinned-track-eyebrow {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 7px;
       margin-bottom: 2px;
     }
     .pinned-track-kicker {
-      font-size: 9.5px;
+      font-size: 10px;
       font-weight: 800;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
       color: ${s.primaryColor};
-      text-shadow: 0 0 8px ${s.glowColor}66;
+      text-shadow: 0 0 10px ${s.glowColor}88;
+    }
+    .pinned-drag-hint {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.35);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-left: auto;
+      text-transform: uppercase;
     }
     .pinned-equalizer-bars {
       display: inline-flex;
       align-items: flex-end;
-      gap: 2px;
-      height: 10px;
+      gap: 2.5px;
+      height: 12px;
     }
     .pinned-equalizer-bars .eq-bar {
-      width: 2px;
+      width: 2.5px;
       background: ${s.primaryColor};
-      border-radius: 1px;
-      box-shadow: 0 0 6px ${s.glowColor}aa;
-      animation: pinnedEqPulse 1.2s ease-in-out infinite alternate;
+      border-radius: 1.5px;
+      box-shadow: 0 0 8px ${s.glowColor};
+      animation: pinnedEqPulse 1.1s ease-in-out infinite alternate;
     }
     .pinned-equalizer-bars .bar-1 { height: 4px; animation-delay: 0s; }
-    .pinned-equalizer-bars .bar-2 { height: 9px; animation-delay: 0.25s; }
-    .pinned-equalizer-bars .bar-3 { height: 6px; animation-delay: 0.45s; }
-    .pinned-equalizer-bars .bar-4 { height: 8px; animation-delay: 0.15s; }
+    .pinned-equalizer-bars .bar-2 { height: 11px; animation-delay: 0.25s; }
+    .pinned-equalizer-bars .bar-3 { height: 7px; animation-delay: 0.45s; }
+    .pinned-equalizer-bars .bar-4 { height: 10px; animation-delay: 0.15s; }
     @keyframes pinnedEqPulse {
-      0% { height: 3px; opacity: 0.5; }
-      100% { height: 10px; opacity: 1; }
+      0% { height: 3px; opacity: 0.4; }
+      100% { height: 12px; opacity: 1; }
     }
     .pinned-track-title {
-      font-size: 15px;
+      font-size: 16.5px;
       font-weight: 800;
       color: #ffffff;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      letter-spacing: -0.015em;
+      letter-spacing: -0.02em;
       line-height: 1.25;
-      text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      text-shadow: 0 2px 10px rgba(0,0,0,0.5);
     }
     .pinned-track-sub {
       display: flex;
@@ -1405,22 +1440,46 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.7);
+      font-size: 12.5px;
+      color: rgba(255, 255, 255, 0.75);
       line-height: 1.3;
     }
     .pinned-track-artist {
       font-weight: 600;
-      color: rgba(255, 255, 255, 0.85);
+      color: rgba(255, 255, 255, 0.9);
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .pinned-track-album {
       color: rgba(255, 255, 255, 0.45);
-      font-size: 11px;
+      font-size: 11.5px;
       margin-left: 4px;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    .pinned-play-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      margin-left: 4px;
+    }
+    .pinned-play-btn:hover {
+      background: ${s.primaryColor};
+      color: #0b0c10;
+      transform: scale(1.08);
+      box-shadow: 0 0 16px ${s.glowColor};
+    }
+    .pinned-play-btn:active {
+      transform: scale(0.94);
     }
 
     /* Ultra-Minimal Luxury Floating HUD */
@@ -2495,6 +2554,7 @@ class ConstellationApp extends Component {
     super(props);
 
     const initialSettings = this.loadSettings();
+    const initialWidgetPos = this.loadWidgetPosition();
 
     this.state = {
       trackInfo: getTrackInfo() || { title: "Waiting for playback", artist: "", album: "", durationMs: 0, uri: "" },
@@ -2518,7 +2578,9 @@ class ConstellationApp extends Component {
       ktWordIdx: 0,
       supernovas: [],
       songSections: [],
-      playlistCoverUrl: null
+      playlistCoverUrl: null,
+      widgetPos: initialWidgetPos,
+      isDraggingWidget: false
     };
 
     this._ktLineIdx = -1;
@@ -2537,6 +2599,10 @@ class ConstellationApp extends Component {
     this.lastMousePos = { x: 0, y: 0 };
     this.dimensions = { width: 1200, height: 800 };
     this.currentUri = null;
+
+    // Draggable iOS Widget interaction state
+    this.widgetDragStart = { mouseX: 0, mouseY: 0, origX: initialWidgetPos.x, origY: initialWidgetPos.y };
+    this.widgetHasMoved = false;
 
     // Smoothed continuous audio clock tracking
     this.lastRawProgress = 0;         // last value returned by getProgress()
@@ -2569,6 +2635,31 @@ class ConstellationApp extends Component {
     this.handleFullscreenChange = this.handleFullscreenChange.bind(this);
     this.updateSettings = this.updateSettings.bind(this);
     this.resetSettings = this.resetSettings.bind(this);
+
+    // Draggable Now Playing Widget methods
+    this.loadWidgetPosition = this.loadWidgetPosition.bind(this);
+    this.handleWidgetMouseDown = this.handleWidgetMouseDown.bind(this);
+    this.handleWidgetMouseMove = this.handleWidgetMouseMove.bind(this);
+    this.handleWidgetMouseUp = this.handleWidgetMouseUp.bind(this);
+    this.handleWidgetTouchStart = this.handleWidgetTouchStart.bind(this);
+    this.handleWidgetTouchMove = this.handleWidgetTouchMove.bind(this);
+    this.handleWidgetTouchEnd = this.handleWidgetTouchEnd.bind(this);
+  }
+
+  loadWidgetPosition() {
+    try {
+      const saved = (window.Spicetify && window.Spicetify.LocalStorage && window.Spicetify.LocalStorage.get("constellation:widget_pos"))
+        || window.localStorage.getItem("constellation:widget_pos");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.x === "number" && typeof parsed.y === "number") {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return { x: 28, y: 28 };
   }
 
   loadSettings() {
@@ -2722,6 +2813,11 @@ class ConstellationApp extends Component {
 
     if (this.hudTimer) clearTimeout(this.hudTimer);
     if (this.hintTimer) clearTimeout(this.hintTimer);
+
+    window.removeEventListener("mousemove", this.handleWidgetMouseMove);
+    window.removeEventListener("mouseup", this.handleWidgetMouseUp);
+    window.removeEventListener("touchmove", this.handleWidgetTouchMove);
+    window.removeEventListener("touchend", this.handleWidgetTouchEnd);
   }
 
   handleKeyDown(e) {
@@ -2915,6 +3011,102 @@ class ConstellationApp extends Component {
 
   handleMouseUp() {
     this.isDragging = false;
+  }
+
+  handleWidgetMouseDown(e) {
+    if (e.button !== 0) return;
+    if (e.target.closest && e.target.closest(".pinned-play-btn")) return;
+    e.stopPropagation();
+    e.preventDefault();
+    this.widgetDragStart = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      origX: this.state.widgetPos.x,
+      origY: this.state.widgetPos.y
+    };
+    this.widgetHasMoved = false;
+    this.setState({ isDraggingWidget: true });
+    window.addEventListener("mousemove", this.handleWidgetMouseMove);
+    window.addEventListener("mouseup", this.handleWidgetMouseUp);
+  }
+
+  handleWidgetMouseMove(e) {
+    if (!this.state.isDraggingWidget) return;
+    const dx = e.clientX - this.widgetDragStart.mouseX;
+    const dy = e.clientY - this.widgetDragStart.mouseY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      this.widgetHasMoved = true;
+    }
+    const container = this.containerRef && this.containerRef.current;
+    const maxW = (container ? container.clientWidth : window.innerWidth) - 100;
+    const maxH = (container ? container.clientHeight : window.innerHeight) - 80;
+    const nextX = Math.max(10, Math.min(maxW, this.widgetDragStart.origX + dx));
+    const nextY = Math.max(10, Math.min(maxH, this.widgetDragStart.origY + dy));
+    this.setState({ widgetPos: { x: nextX, y: nextY } });
+  }
+
+  handleWidgetMouseUp() {
+    window.removeEventListener("mousemove", this.handleWidgetMouseMove);
+    window.removeEventListener("mouseup", this.handleWidgetMouseUp);
+    if (this.state.isDraggingWidget) {
+      this.setState({ isDraggingWidget: false });
+      try {
+        const str = JSON.stringify(this.state.widgetPos);
+        if (window.Spicetify && window.Spicetify.LocalStorage) {
+          window.Spicetify.LocalStorage.set("constellation:widget_pos", str);
+        }
+        window.localStorage.setItem("constellation:widget_pos", str);
+      } catch (err) {}
+    }
+  }
+
+  handleWidgetTouchStart(e) {
+    if (!e.touches || e.touches.length !== 1) return;
+    if (e.target.closest && e.target.closest(".pinned-play-btn")) return;
+    e.stopPropagation();
+    const t = e.touches[0];
+    this.widgetDragStart = {
+      mouseX: t.clientX,
+      mouseY: t.clientY,
+      origX: this.state.widgetPos.x,
+      origY: this.state.widgetPos.y
+    };
+    this.widgetHasMoved = false;
+    this.setState({ isDraggingWidget: true });
+    window.addEventListener("touchmove", this.handleWidgetTouchMove, { passive: false });
+    window.addEventListener("touchend", this.handleWidgetTouchEnd);
+  }
+
+  handleWidgetTouchMove(e) {
+    if (!this.state.isDraggingWidget || !e.touches || e.touches.length !== 1) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    const dx = t.clientX - this.widgetDragStart.mouseX;
+    const dy = t.clientY - this.widgetDragStart.mouseY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      this.widgetHasMoved = true;
+    }
+    const container = this.containerRef && this.containerRef.current;
+    const maxW = (container ? container.clientWidth : window.innerWidth) - 100;
+    const maxH = (container ? container.clientHeight : window.innerHeight) - 80;
+    const nextX = Math.max(10, Math.min(maxW, this.widgetDragStart.origX + dx));
+    const nextY = Math.max(10, Math.min(maxH, this.widgetDragStart.origY + dy));
+    this.setState({ widgetPos: { x: nextX, y: nextY } });
+  }
+
+  handleWidgetTouchEnd() {
+    window.removeEventListener("touchmove", this.handleWidgetTouchMove);
+    window.removeEventListener("touchend", this.handleWidgetTouchEnd);
+    if (this.state.isDraggingWidget) {
+      this.setState({ isDraggingWidget: false });
+      try {
+        const str = JSON.stringify(this.state.widgetPos);
+        if (window.Spicetify && window.Spicetify.LocalStorage) {
+          window.Spicetify.LocalStorage.set("constellation:widget_pos", str);
+        }
+        window.localStorage.setItem("constellation:widget_pos", str);
+      } catch (err) {}
+    }
   }
 
   handleWheel(e) {
@@ -3458,19 +3650,31 @@ class ConstellationApp extends Component {
         style: { backgroundImage: `url("${s.backdropSource === "playlist" && this.state.playlistCoverUrl ? this.state.playlistCoverUrl : trackInfo.coverUrl}")` }
       }),
 
-      // Pinned Aesthetic Now Playing Island (Always visible when pinTrackInfo is enabled)
+      // Pinned Aesthetic Floating iOS Now Playing Widget (Draggable & Movable)
       s.pinTrackInfo !== false && trackInfo && trackInfo.title &&
       react.createElement(
         "div",
         {
-          className: "const-pinned-track-badge",
-          onClick: () => {
+          className: "const-pinned-track-badge" + (this.state.isDraggingWidget ? " is-dragging" : ""),
+          style: {
+            left: `${this.state.widgetPos.x}px`,
+            top: `${this.state.widgetPos.y}px`
+          },
+          onMouseDown: this.handleWidgetMouseDown,
+          onTouchStart: this.handleWidgetTouchStart,
+          onClick: (e) => {
+            if (this.widgetHasMoved) {
+              e.preventDefault();
+              e.stopPropagation();
+              return;
+            }
             if (trackInfo.uri && window.Spicetify && window.Spicetify.Platform && window.Spicetify.Platform.History) {
               window.Spicetify.Platform.History.push({ pathname: `/track/${trackInfo.uri.replace("spotify:track:", "")}` });
             }
           },
-          title: `${trackInfo.title} by ${trackInfo.artist}${trackInfo.album ? ` (${trackInfo.album})` : ""}`
+          title: `${trackInfo.title} by ${trackInfo.artist}${trackInfo.album ? ` (${trackInfo.album})` : ""} • Drag anywhere to move`
         },
+        react.createElement("div", { className: "widget-drag-pill" }),
         react.createElement(
           "div",
           { className: "pinned-track-art-wrapper" },
@@ -3483,7 +3687,7 @@ class ConstellationApp extends Component {
             : react.createElement(
                 "div",
                 { className: "pinned-track-art-fallback" },
-                react.createElement("svg", { width: 22, height: 22, viewBox: "0 0 24 24", fill: s.primaryColor },
+                react.createElement("svg", { width: 26, height: 26, viewBox: "0 0 24 24", fill: s.primaryColor },
                   react.createElement("path", { d: "M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" })
                 )
               ),
@@ -3500,7 +3704,8 @@ class ConstellationApp extends Component {
               "div",
               { className: "pinned-equalizer-bars" },
               [1, 2, 3, 4].map(b => react.createElement("span", { key: b, className: `eq-bar bar-${b}` }))
-            )
+            ),
+            react.createElement("span", { className: "pinned-drag-hint" }, "⠿ DRAG")
           ),
           react.createElement("div", { className: "pinned-track-title" }, trackInfo.title),
           react.createElement(
@@ -3509,6 +3714,30 @@ class ConstellationApp extends Component {
             react.createElement("span", { className: "pinned-track-artist" }, trackInfo.artist),
             trackInfo.album && trackInfo.album !== trackInfo.title && react.createElement("span", { className: "pinned-track-album" }, ` • ${trackInfo.album}`)
           )
+        ),
+        react.createElement(
+          "button",
+          {
+            className: "pinned-play-btn",
+            title: isPlaying ? "Pause" : "Play",
+            onClick: (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              this.togglePlay();
+            }
+          },
+          isPlaying
+            ? react.createElement(
+              "svg",
+              { width: 14, height: 14, viewBox: "0 0 24 24", fill: "currentColor" },
+              react.createElement("rect", { x: 6, y: 4, width: 4, height: 16, rx: 1 }),
+              react.createElement("rect", { x: 14, y: 4, width: 4, height: 16, rx: 1 })
+            )
+            : react.createElement(
+              "svg",
+              { width: 14, height: 14, viewBox: "0 0 24 24", fill: "currentColor" },
+              react.createElement("polygon", { points: "6 4 20 12 6 20 6 4" })
+            )
         )
       ),
 

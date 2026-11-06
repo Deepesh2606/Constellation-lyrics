@@ -196,6 +196,113 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
   const isDraggingRef = useRef(false);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
 
+  // Draggable Now Playing iOS Widget position
+  const [widgetPos, setWidgetPos] = useState<{ x: number; y: number }>(() => {
+    try {
+      const saved = localStorage.getItem('constellation_widget_pos');
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (typeof p.x === 'number' && typeof p.y === 'number') return p;
+      }
+    } catch (e) {}
+    return { x: 24, y: 24 };
+  });
+  const [isDraggingWidget, setIsDraggingWidget] = useState(false);
+  const widgetDragStartRef = useRef({ mouseX: 0, mouseY: 0, origX: 24, origY: 24 });
+  const widgetMovedRef = useRef(false);
+
+  const handleWidgetMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest('.pinned-play-btn')) return;
+    e.stopPropagation();
+    widgetDragStartRef.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      origX: widgetPos.x,
+      origY: widgetPos.y,
+    };
+    widgetMovedRef.current = false;
+    setIsDraggingWidget(true);
+
+    const onMouseMove = (me: MouseEvent) => {
+      const dx = me.clientX - widgetDragStartRef.current.mouseX;
+      const dy = me.clientY - widgetDragStartRef.current.mouseY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        widgetMovedRef.current = true;
+      }
+      const containerW = containerRef.current?.clientWidth || window.innerWidth;
+      const containerH = containerRef.current?.clientHeight || window.innerHeight;
+      const maxX = Math.max(16, containerW - 360);
+      const maxY = Math.max(16, containerH - 100);
+      const nextX = Math.max(12, Math.min(maxX, widgetDragStartRef.current.origX + dx));
+      const nextY = Math.max(12, Math.min(maxY, widgetDragStartRef.current.origY + dy));
+      setWidgetPos({ x: nextX, y: nextY });
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      setIsDraggingWidget(false);
+      setWidgetPos((curr) => {
+        try {
+          localStorage.setItem('constellation_widget_pos', JSON.stringify(curr));
+        } catch (err) {}
+        return curr;
+      });
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  const handleWidgetTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    if ((e.target as HTMLElement).closest('.pinned-play-btn')) return;
+    e.stopPropagation();
+    const touch = e.touches[0];
+    widgetDragStartRef.current = {
+      mouseX: touch.clientX,
+      mouseY: touch.clientY,
+      origX: widgetPos.x,
+      origY: widgetPos.y,
+    };
+    widgetMovedRef.current = false;
+    setIsDraggingWidget(true);
+
+    const onTouchMove = (me: TouchEvent) => {
+      if (me.touches.length !== 1) return;
+      me.preventDefault();
+      const t = me.touches[0];
+      const dx = t.clientX - widgetDragStartRef.current.mouseX;
+      const dy = t.clientY - widgetDragStartRef.current.mouseY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        widgetMovedRef.current = true;
+      }
+      const containerW = containerRef.current?.clientWidth || window.innerWidth;
+      const containerH = containerRef.current?.clientHeight || window.innerHeight;
+      const maxX = Math.max(16, containerW - 360);
+      const maxY = Math.max(16, containerH - 100);
+      const nextX = Math.max(12, Math.min(maxX, widgetDragStartRef.current.origX + dx));
+      const nextY = Math.max(12, Math.min(maxY, widgetDragStartRef.current.origY + dy));
+      setWidgetPos({ x: nextX, y: nextY });
+    };
+
+    const onTouchEnd = () => {
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+      setIsDraggingWidget(false);
+      setWidgetPos((curr) => {
+        try {
+          localStorage.setItem('constellation_widget_pos', JSON.stringify(curr));
+        } catch (err) {}
+        return curr;
+      });
+    };
+
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onTouchEnd);
+  };
+
   // Dynamic font from settings
   const fontInfo = useMemo(() => {
     return FONT_FAMILY_MAP[settings.fontFamily] || FONT_FAMILY_MAP.sans;
@@ -889,53 +996,96 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
         </div>
       )}
 
-      {/* Aesthetic Floating Now Playing Island (Top-Left) */}
+      {/* Aesthetic Floating iOS Now Playing Widget (Draggable Anywhere) */}
       {trackTitle && (
         <div
-          className="absolute top-5 left-5 z-20 flex items-center gap-3.5 px-3 py-2.5 rounded-2xl backdrop-blur-2xl bg-[#0a0b10]/80 border border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.65)] hover:border-white/20 transition-all group max-w-[340px] sm:max-w-md select-none cursor-pointer"
+          onMouseDown={handleWidgetMouseDown}
+          onTouchStart={handleWidgetTouchStart}
+          className={`absolute z-30 flex items-center gap-4 px-3.5 py-3 rounded-[24px] backdrop-blur-2xl bg-[#0c0e18]/85 border border-white/15 select-none transition-[box-shadow,border-color,transform] touch-none ${
+            isDraggingWidget
+              ? 'cursor-grabbing scale-[1.035] border-white/30 shadow-[0_35px_80px_rgba(0,0,0,0.9)]'
+              : 'cursor-grab hover:border-white/25 hover:-translate-y-0.5 shadow-[0_20px_50px_rgba(0,0,0,0.7)]'
+          } max-w-[460px] min-w-[320px]`}
           style={{
-            boxShadow: `0 16px 40px rgba(0,0,0,0.65), 0 0 25px ${settings.glowColor}1c`,
+            left: widgetPos.x,
+            top: widgetPos.y,
+            boxShadow: isDraggingWidget
+              ? `0 35px 80px rgba(0,0,0,0.9), 0 0 45px ${settings.glowColor}50, inset 0 1px 2px rgba(255,255,255,0.35)`
+              : `0 20px 50px rgba(0,0,0,0.7), 0 0 35px ${settings.glowColor}25, inset 0 1px 1.5px rgba(255,255,255,0.2)`,
           }}
+          title={`${trackTitle} by ${trackArtist}${trackAlbum ? ` (${trackAlbum})` : ''} • Drag anywhere to move`}
         >
-          {/* Cover Art with Sheen & Glow */}
-          <div className="relative w-13 h-13 rounded-xl overflow-hidden shrink-0 shadow-lg border border-white/10 group-hover:scale-105 transition-transform" style={{ width: 52, height: 52 }}>
+          {/* iOS Top Drag Pill */}
+          <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-9 h-1 rounded-full bg-white/25 pointer-events-none transition-all group-hover:bg-white/45 group-hover:w-12" />
+
+          {/* Cover Art with Gloss Sheen & Glow */}
+          <div
+            className="relative rounded-[18px] overflow-hidden shrink-0 shadow-lg border border-white/15 bg-neutral-900 group-hover:scale-105 transition-transform"
+            style={{ width: 66, height: 66 }}
+          >
             {coverUrl ? (
               <img src={coverUrl} alt={trackTitle} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-white/5 flex items-center justify-center">
-                <Music2 className="w-5 h-5 text-neutral-400" />
+                <Music2 className="w-6 h-6" style={{ color: settings.primaryColor }} />
               </div>
             )}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/25 via-transparent to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent pointer-events-none" />
           </div>
 
           {/* Texts & Equalizer */}
-          <div className="flex flex-col min-w-0 pr-1 overflow-hidden">
+          <div className="flex flex-col min-w-0 pr-1 flex-1 overflow-hidden">
             <div className="flex items-center gap-2 mb-0.5">
               <span
-                className="text-[9.5px] font-extrabold uppercase tracking-widest"
-                style={{ color: settings.primaryColor }}
+                className="text-[10px] font-black uppercase tracking-widest"
+                style={{
+                  color: settings.primaryColor,
+                  textShadow: `0 0 8px ${settings.glowColor}88`,
+                }}
               >
                 Now Playing
               </span>
               {isPlaying && (
-                <div className="flex items-end gap-0.5 h-2.5">
-                  <span className="w-0.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: settings.primaryColor }} />
-                  <span className="w-0.5 h-2.5 rounded-full animate-bounce [animation-delay:0.15s]" style={{ backgroundColor: settings.primaryColor }} />
+                <div className="flex items-end gap-0.5 h-3">
+                  <span className="w-0.5 h-1 rounded-full animate-bounce" style={{ backgroundColor: settings.primaryColor }} />
+                  <span className="w-0.5 h-3 rounded-full animate-bounce [animation-delay:0.15s]" style={{ backgroundColor: settings.primaryColor }} />
                   <span className="w-0.5 h-2 rounded-full animate-bounce [animation-delay:0.3s]" style={{ backgroundColor: settings.primaryColor }} />
+                  <span className="w-0.5 h-2.5 rounded-full animate-bounce [animation-delay:0.45s]" style={{ backgroundColor: settings.primaryColor }} />
                 </div>
               )}
+              <span className="ml-auto text-[9px] font-bold text-white/30 tracking-wider uppercase">
+                ⠿ Drag
+              </span>
             </div>
-            <div className="text-[14.5px] font-bold text-white truncate max-w-[220px] sm:max-w-xs leading-snug">
+            <div className="text-[16px] font-black text-white truncate max-w-[240px] sm:max-w-xs leading-tight tracking-tight">
               {trackTitle}
             </div>
-            <div className="text-xs text-neutral-300 truncate max-w-[220px] sm:max-w-xs font-medium">
+            <div className="text-[12.5px] text-neutral-300 truncate max-w-[240px] sm:max-w-xs font-semibold leading-snug">
               {trackArtist}
               {trackAlbum && trackAlbum !== trackTitle && (
-                <span className="text-neutral-500 text-[11px] ml-1.5">• {trackAlbum}</span>
+                <span className="text-neutral-500 text-[11px] font-normal ml-1.5">• {trackAlbum}</span>
               )}
             </div>
           </div>
+
+          {/* Quick Play/Pause Action Button */}
+          {onTogglePlay && (
+            <button
+              type="button"
+              className="pinned-play-btn w-9 h-9 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all hover:scale-105 active:scale-95 shrink-0 ml-1 cursor-pointer"
+              title={isPlaying ? 'Pause' : 'Play'}
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePlay();
+              }}
+            >
+              {isPlaying ? (
+                <Pause className="w-4 h-4 fill-current" />
+              ) : (
+                <Play className="w-4 h-4 fill-current ml-0.5" />
+              )}
+            </button>
+          )}
         </div>
       )}
 
