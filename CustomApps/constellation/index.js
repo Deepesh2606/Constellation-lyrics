@@ -90,7 +90,7 @@ const DEFAULT_CONSTELLATION_SETTINGS = {
   showSongSections: false,   // Off by default: Song sections (Verse/Chorus) timeline
   autoScreensaver: true,     // Clean OLED screensaver mode: hide HUD after 4s
   dynamicChromaShift: true,  // Auto-shift vibrant colors on popular verses (Chorus/Drop) and good beats
-  chromaSpeed: "dynamic"     // "dynamic" (Verses & Chorus) | "fast" (Every phrase & beat)
+  chromaSpeed: "fast"        // Fast periodic cover-palette cycling on every phrase & beat
 };
 
 const MIN_WORD_DISTANCE = 56;
@@ -604,6 +604,196 @@ function parseHexColor(hex) {
     g: parseInt(clean.substring(2, 4), 16),
     b: parseInt(clean.substring(4, 6), 16)
   };
+}
+
+// Full-spectrum HSL and RGB color math engine for playlist & cover art palette extraction
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0, l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return [h * 360, s, l];
+}
+
+function hslToRgb(h, s, l) {
+  h = ((h % 360) + 360) % 360;
+  let r, g, b;
+  if (s === 0) {
+    r = g = b = l;
+  } else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h / 360 + 1 / 3);
+    g = hue2rgb(p, q, h / 360);
+    b = hue2rgb(p, q, h / 360 - 1 / 3);
+  }
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+function createChromaPaletteFromHsl(h, s, l, name) {
+  // Boost vibrancy: high saturation (0.86-0.98) and crisp celestial lightness (0.52-0.65)
+  const boostS = Math.max(0.86, Math.min(1.0, s * 1.15));
+  const boostL = Math.max(0.52, Math.min(0.66, l * 1.08));
+  const [pr, pg, pb] = hslToRgb(h, boostS, boostL);
+  const [gr, gg, gb] = hslToRgb(h, Math.min(1, boostS * 1.05), Math.min(0.78, boostL * 1.15));
+  const [par, pag, pab] = hslToRgb((h + 8) % 360, Math.max(0.7, boostS * 0.88), Math.min(0.72, boostL * 1.1));
+
+  const primary = `#${toHex2(pr)}${toHex2(pg)}${toHex2(pb)}`;
+  const glow = `#${toHex2(gr)}${toHex2(gg)}${toHex2(gb)}`;
+  const past = `#${toHex2(par)}${toHex2(pag)}${toHex2(pab)}`;
+
+  return { primary, glow, past, name };
+}
+
+function generateDynamicPaletteFromChroma(pal) {
+  const rgb = parseHexColor(pal.primary);
+  if (!rgb) return null;
+  return {
+    primaryColor: pal.primary,
+    glowColor: pal.glow,
+    pastColor: pal.past,
+    bgColor: `#${toHex2(Math.max(6, rgb.r * 0.06))}${toHex2(Math.max(6, rgb.g * 0.06))}${toHex2(Math.max(8, rgb.b * 0.07))}`,
+    futureColor: "#71717a",
+    themeId: "dynamic"
+  };
+}
+
+async function extractCoverArtMultiPalettes(coverUrl, uri, callback) {
+  if (typeof callback !== "function") return;
+  const palettes = [];
+
+  // 1. Spicetify native color extractor if available
+  if (window.Spicetify && typeof window.Spicetify.colorExtractor === "function" && uri) {
+    try {
+      const swatches = await window.Spicetify.colorExtractor(uri);
+      if (swatches) {
+        const swatchOrder = [
+          { key: "VIBRANT", name: "Vibrant Nova" },
+          { key: "LIGHT_VIBRANT", name: "Solar Aurora" },
+          { key: "PROMINENT", name: "Cover Core" },
+          { key: "VIBRANT_NON_ALARMING", name: "Electric Pulse" },
+          { key: "MUTED", name: "Celestial Muted" },
+          { key: "LIGHT_MUTED", name: "Cosmic Glow" },
+          { key: "DARK_VIBRANT", name: "Deep Abyss" }
+        ];
+        for (const s of swatchOrder) {
+          const hex = swatches[s.key];
+          const rgb = parseHexColor(hex);
+          if (rgb) {
+            const [h, sat, lum] = rgbToHsl(rgb.r, rgb.g, rgb.b);
+            palettes.push(createChromaPaletteFromHsl(h, sat, lum, s.name));
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 2. Direct Canvas pixel extraction from coverUrl (Playlist cover or Album art)
+  const resolved = resolveCoverUrl(coverUrl);
+  if (resolved) {
+    try {
+      const response = await fetch(resolved);
+      if (response.ok) {
+        const blob = await response.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, 64, 64);
+            const imgData = ctx.getImageData(0, 0, 64, 64).data;
+            URL.revokeObjectURL(objUrl);
+
+            // Group pixels into 8 distinct hue sectors
+            const sectors = Array.from({ length: 8 }, () => ({ maxSat: -1, bestHsl: null, count: 0 }));
+            const sectorNames = [
+              "Crimson Nova", "Solar Flare", "Amber Glow", "Emerald Mint",
+              "Cyber Cyan", "Electric Cobalt", "Ultraviolet", "Neon Orchid"
+            ];
+
+            for (let i = 0; i < imgData.length; i += 16) {
+              const r = imgData[i], g = imgData[i + 1], b = imgData[i + 2], a = imgData[i + 3];
+              if (a < 128) continue;
+              const [h, s, l] = rgbToHsl(r, g, b);
+              if (l < 0.12 || l > 0.92) continue; // Skip near black or near white
+              const secIdx = Math.floor(((h % 360) + 360) % 360 / 45);
+              const sec = sectors[secIdx];
+              sec.count++;
+              if (s > sec.maxSat) {
+                sec.maxSat = s;
+                sec.bestHsl = [h, s, l];
+              }
+            }
+
+            // Collect found sectors
+            const extracted = [];
+            for (let sIdx = 0; sIdx < 8; sIdx++) {
+              const sec = sectors[sIdx];
+              if (sec.bestHsl && sec.maxSat > 0.15) {
+                extracted.push(createChromaPaletteFromHsl(sec.bestHsl[0], sec.bestHsl[1], sec.bestHsl[2], sectorNames[sIdx]));
+              }
+            }
+
+            if (extracted.length >= 2) {
+              // Combine Spicetify swatches with canvas sectors, deduplicating
+              const finalPalettes = [...extracted];
+              for (const p of palettes) {
+                if (!finalPalettes.some(fp => Math.abs(parseInt(fp.primary.slice(1, 3), 16) - parseInt(p.primary.slice(1, 3), 16)) < 15)) {
+                  finalPalettes.push(p);
+                }
+              }
+              // If under 6 palettes, generate harmonic hue shifts from dominant
+              if (finalPalettes.length < 6 && finalPalettes.length > 0) {
+                const baseRgb = parseHexColor(finalPalettes[0].primary);
+                if (baseRgb) {
+                  const [baseH, baseS, baseL] = rgbToHsl(baseRgb.r, baseRgb.g, baseRgb.b);
+                  const shifts = [45, 90, 135, 180, 225, 270, 315];
+                  for (let si = 0; si < shifts.length && finalPalettes.length < 8; si++) {
+                    const shiftedH = (baseH + shifts[si]) % 360;
+                    finalPalettes.push(createChromaPaletteFromHsl(shiftedH, baseS, baseL, `Harmonic ${sectorNames[Math.floor(shiftedH / 45)]}`));
+                  }
+                }
+              }
+              callback(finalPalettes.slice(0, 8));
+              return;
+            }
+          } catch (err) {
+            URL.revokeObjectURL(objUrl);
+          }
+        };
+        img.onerror = () => URL.revokeObjectURL(objUrl);
+        img.src = objUrl;
+        return;
+      }
+    } catch (e) {}
+  }
+
+  // Fallback: If palettes found from Spicetify, use them; otherwise FAST_BEAT_PALETTES
+  if (palettes.length >= 3) {
+    callback(palettes.slice(0, 8));
+  } else {
+    callback(FAST_BEAT_PALETTES);
+  }
 }
 
 function generateDynamicPalette(r, g, b) {
@@ -1160,28 +1350,28 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
     /* Upcoming words in active line */
     .star-node.is-current-upcoming circle {
       r: 3.2px;
-      fill: var(--const-primary, ${s.primaryColor});
+      fill: var(--const-primary, ${s.primaryColor}) !important;
       opacity: 0.75;
-      transition: fill 0.4s ease;
+      transition: fill 0.3s ease;
     }
     .star-node.is-current-upcoming text {
-      fill: var(--const-primary, ${s.primaryColor});
-      opacity: 0.82;
+      fill: var(--const-primary, ${s.primaryColor}) !important;
+      opacity: 0.85;
       font-size: ${s.fontSize * 0.95}px;
       font-weight: 500;
-      transition: fill 0.4s ease;
+      transition: fill 0.3s ease;
     }
 
     /* Active word currently sung */
     .star-node.is-active circle {
       r: 7.2px;
-      fill: var(--const-primary, ${s.primaryColor});
+      fill: var(--const-primary, ${s.primaryColor}) !important;
       opacity: 1.0;
       filter: url(#lime-glow);
-      transition: fill 0.3s ease;
+      transition: fill 0.25s ease;
     }
     .star-node.is-active text {
-      fill: #ffffff;
+      fill: #ffffff !important;
       opacity: 1.0;
       font-size: ${s.fontSize * 1.25}px;
       font-weight: ${weightVal};
@@ -1191,31 +1381,31 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
     /* Sung words in active line */
     .star-node.is-current-past circle {
       r: 4.2px;
-      fill: var(--const-past, ${s.pastColor});
+      fill: var(--const-past, ${s.pastColor}) !important;
       opacity: 0.95;
-      transition: fill 0.4s ease;
+      transition: fill 0.3s ease;
     }
     .star-node.is-current-past text {
-      fill: var(--const-past, ${s.pastColor});
+      fill: var(--const-past, ${s.pastColor}) !important;
       opacity: 0.95;
       font-size: ${s.fontSize}px;
       font-weight: 600;
-      transition: fill 0.4s ease;
+      transition: fill 0.3s ease;
     }
 
     /* Past sung lines */
     .star-node.is-past circle {
       r: 2.2px;
-      fill: var(--const-past, ${s.pastColor});
-      opacity: 0.35;
-      transition: fill 0.4s ease;
+      fill: var(--const-past, ${s.pastColor}) !important;
+      opacity: 0.4;
+      transition: fill 0.3s ease;
     }
     .star-node.is-past text {
-      fill: var(--const-past, ${s.pastColor});
-      opacity: 0.35;
+      fill: var(--const-past, ${s.pastColor}) !important;
+      opacity: 0.4;
       font-size: ${s.fontSize * 0.88}px;
       font-weight: 400;
-      transition: fill 0.4s ease;
+      transition: fill 0.3s ease;
     }
 
     /* Line-End Popped Word Aesthetics */
@@ -1304,28 +1494,28 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
 
     /* Connecting Lines */
     .const-line {
-      transition: stroke 0.4s ease, stroke-width 0.3s ease, stroke-opacity 0.3s ease;
+      transition: stroke 0.3s ease, stroke-width 0.25s ease, stroke-opacity 0.25s ease;
     }
     .const-line.is-future {
-      stroke: var(--const-future, ${s.primaryColor});
+      stroke: var(--const-future, ${s.primaryColor}) !important;
       stroke-width: 1.1px;
       stroke-opacity: 0.22;
     }
     .const-line.is-active {
-      stroke: var(--const-primary, ${s.primaryColor});
+      stroke: var(--const-primary, ${s.primaryColor}) !important;
       stroke-width: 2.4px;
       stroke-opacity: 0.95;
       filter: url(#lime-glow);
     }
     .const-line.is-past {
-      stroke: var(--const-past, ${s.pastColor});
+      stroke: var(--const-past, ${s.pastColor}) !important;
       stroke-width: 1.4px;
       stroke-opacity: 0.65;
     }
     .const-line.is-old {
-      stroke: var(--const-past, ${s.pastColor});
+      stroke: var(--const-past, ${s.pastColor}) !important;
       stroke-width: 1px;
-      stroke-opacity: 0.12;
+      stroke-opacity: 0.15;
     }
 
     /* Aesthetic Floating iOS Now Playing Widget (Draggable & Resizable) */
@@ -2468,7 +2658,7 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       z-index: 0;
       opacity: 0.55;
       mix-blend-mode: screen;
-      background: radial-gradient(ellipse at 50% 0%, ${s.primaryColor}28 0%, ${s.glowColor}18 35%, transparent 70%);
+      background: radial-gradient(ellipse at 50% 0%, var(--const-primary, ${s.primaryColor})38 0%, var(--const-glow, ${s.glowColor})20 35%, transparent 70%);
       filter: blur(55px);
       animation: aurora-wave 18s ease-in-out infinite alternate;
       will-change: transform, opacity;
@@ -2483,7 +2673,7 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       z-index: 0;
       opacity: 0.45;
       mix-blend-mode: color-dodge;
-      background: radial-gradient(ellipse at 60% 0%, ${s.glowColor}30 0%, ${s.primaryColor}15 40%, transparent 75%);
+      background: radial-gradient(ellipse at 60% 0%, var(--const-glow, ${s.glowColor})40 0%, var(--const-primary, ${s.primaryColor})18 40%, transparent 75%);
       filter: blur(65px);
       animation: aurora-wave-2 24s ease-in-out infinite alternate;
       will-change: transform, opacity;
@@ -2601,10 +2791,23 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       100% { transform: scale(1.22) rotate(2deg); }
     }
 
+    /* Atmospheric Dynamic Cover Aura Backdrop (Spotify mobile lyrics style) */
+    .const-dynamic-cover-aura {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background: var(--const-bg-aura, radial-gradient(ellipse at 50% 38%, var(--const-primary, ${s.primaryColor})33 0%, var(--const-glow, ${s.glowColor})16 45%, transparent 75%));
+      transition: background 0.85s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.8s ease;
+      mix-blend-mode: screen;
+      opacity: 0.95;
+      will-change: background;
+    }
+
     /* Rhythmic Beat Pulse Simulation */
     @keyframes const-bass-beat {
-      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px ${s.glowColor}55); }
-      30% { transform: scale(1.045); filter: drop-shadow(0 0 28px ${s.glowColor}); }
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px var(--const-glow-alpha, ${s.glowColor}55)); }
+      30% { transform: scale(1.045); filter: drop-shadow(0 0 28px var(--const-glow, ${s.glowColor})); }
     }
     .beat-pulse-active {
       animation: const-bass-beat 0.55s infinite cubic-bezier(0.16, 1, 0.3, 1);
@@ -2616,7 +2819,7 @@ function injectStyles(settings = DEFAULT_CONSTELLATION_SETTINGS) {
       width: 650px;
       height: 650px;
       border-radius: 50%;
-      background: radial-gradient(circle, ${s.primaryColor}18 0%, ${s.glowColor}08 45%, transparent 75%);
+      background: radial-gradient(circle, var(--const-primary, ${s.primaryColor})28 0%, var(--const-glow, ${s.glowColor})12 45%, transparent 75%);
       filter: blur(48px);
       pointer-events: none;
       animation: nebula-drift 32s infinite ease-in-out alternate;
@@ -2856,10 +3059,13 @@ class ConstellationApp extends Component {
     this.widgetResizeStart = { mouseX: 0, mouseY: 0, origWidth: initialWidgetSize.width, origHeight: initialWidgetSize.height };
     this.widgetHasMoved = false;
 
-    // Dynamic chroma shift section tracking
+    // Dynamic chroma shift section tracking & Cover Art multi-palette rotation
     this.currentChromaSection = null;
     this.lastFastChromaIdx = 0;
     this.lastChromaLineIdx = -1;
+    this.coverPalettes = FAST_BEAT_PALETTES;
+    this.currentCoverPaletteIdx = 0;
+    this.lastChromaCycleTime = 0;
 
     // Smoothed continuous audio clock tracking
     this.lastRawProgress = 0;         // last value returned by getProgress()
@@ -3187,19 +3393,34 @@ class ConstellationApp extends Component {
       error: null
     });
 
-    // Dynamic Cover Color Sync: automatically adapt theme colors to current album artwork
-    if (this.state.settings.themeId === "dynamic" || !this.state.settings.themeId) {
-      extractTrackColors(info.uri, info.coverUrl, (extracted) => {
-        this.updateSettings(extracted);
-      });
-    }
+    // Playlist & Cover Art Multi-Palette Extraction: Sample vibrant palettes directly from cover image
+    const syncPlaylistAndCoverPalettes = async () => {
+      let targetCoverUrl = info.coverUrl;
+      if (info.contextUri && info.contextUri.includes("playlist")) {
+        try {
+          const pUrl = await fetchPlaylistCover(info.contextUri);
+          if (pUrl) {
+            targetCoverUrl = pUrl;
+            this.setState({ playlistCoverUrl: pUrl });
+          }
+        } catch (e) {}
+      }
 
-    // Playlist Cover Art extraction if enabled
-    if (this.state.settings.backdropSource === "playlist" && info.contextUri && info.contextUri.includes("playlist")) {
-      fetchPlaylistCover(info.contextUri).then((pUrl) => {
-        if (pUrl) this.setState({ playlistCoverUrl: pUrl });
+      extractCoverArtMultiPalettes(targetCoverUrl, info.uri, (palettes) => {
+        if (palettes && palettes.length > 0) {
+          this.coverPalettes = palettes;
+          this.currentCoverPaletteIdx = 0;
+          this.lastChromaCycleTime = performance.now();
+          const firstPal = palettes[0];
+          this.applyChromaPalette(firstPal, firstPal.name);
+          const dynamicSet = generateDynamicPaletteFromChroma(firstPal);
+          if (dynamicSet && (this.state.settings.themeId === "dynamic" || !this.state.settings.themeId)) {
+            this.updateSettings(dynamicSet);
+          }
+        }
       });
-    }
+    };
+    syncPlaylistAndCoverPalettes();
 
     const durationSec = Math.round(info.durationMs / 1000);
     const result = await fetchLyrics(info.title, info.artist, info.album, durationSec, info.uri);
@@ -3523,29 +3744,114 @@ class ConstellationApp extends Component {
     this.currentChromaPalette = pal;
     const root = this.containerRef && this.containerRef.current;
     if (root) {
-      root.style.setProperty("--const-primary", pal.primary);
-      root.style.setProperty("--const-glow", pal.glow);
-      root.style.setProperty("--const-glow-alpha", pal.glow + "38");
-      root.style.setProperty("--const-past", pal.past || pal.primary);
-      root.style.setProperty("--const-future", pal.primary + "55");
+      const pColor = pal.primary;
+      const gColor = pal.glow;
+      const pastColor = pal.past || pal.primary;
+      const futureColor = pal.primary + "55";
+      const gAlpha = pal.glow + "38";
 
-      // Update ambient stars
+      // 1. Root Cascading CSS Properties
+      root.style.setProperty("--const-primary", pColor);
+      root.style.setProperty("--const-glow", gColor);
+      root.style.setProperty("--const-glow-alpha", gAlpha);
+      root.style.setProperty("--const-past", pastColor);
+      root.style.setProperty("--const-future", futureColor);
+      root.style.setProperty("--const-primary-15", pColor + "26");
+      root.style.setProperty("--const-primary-60", pColor + "99");
+      root.style.setProperty("--const-bg-aura", `radial-gradient(ellipse at 50% 38%, ${pColor}33 0%, ${gColor}18 45%, transparent 75%)`);
+
+      // 2. Atmospheric Dynamic Cover Aura Backdrop (Spotify mobile lyrics style)
+      const auraEl = this.coverAuraEl || root.querySelector(".const-dynamic-cover-aura");
+      if (auraEl) {
+        auraEl.style.background = `radial-gradient(ellipse at 50% 38%, ${pColor}35 0%, ${gColor}1a 45%, transparent 75%)`;
+      }
+
+      // 3. Cosmic Aurora Curtains & Nebula Clouds
+      const aurora1 = root.querySelector(".const-aurora-curtain");
+      if (aurora1) aurora1.style.background = `radial-gradient(ellipse at 50% 0%, ${pColor}38 0%, ${gColor}20 35%, transparent 70%)`;
+      const aurora2 = root.querySelector(".const-aurora-wave-2");
+      if (aurora2) aurora2.style.background = `radial-gradient(ellipse at 60% 0%, ${gColor}40 0%, ${pColor}18 40%, transparent 75%)`;
+      const nebulaCloud = root.querySelector(".const-nebula-cloud");
+      if (nebulaCloud) nebulaCloud.style.background = `radial-gradient(circle, ${pColor}28 0%, ${gColor}12 45%, transparent 75%)`;
+
+      // 4. Ambient Background Stars
       const ambientStars = root.querySelectorAll(".ambient-star");
-      ambientStars.forEach(st => st.setAttribute("fill", pal.primary));
+      ambientStars.forEach(st => st.setAttribute("fill", pColor));
 
-      // Update stream pop rings
+      // 5. Stream Pop Accent Rings
       const popRings = root.querySelectorAll(".star-node-pop-ring");
-      popRings.forEach(pr => pr.setAttribute("stroke", pal.primary));
+      popRings.forEach(pr => pr.setAttribute("stroke", pColor));
 
-      // Update text glow filter floodColor
+      // 6. SVG Text Glow & Nebula Haze
       const textGlowDrop = root.querySelector("#text-glow feDropShadow");
-      if (textGlowDrop) textGlowDrop.setAttribute("flood-color", pal.glow);
+      if (textGlowDrop) textGlowDrop.setAttribute("flood-color", gColor);
 
-      // Update SVG nebula / cloud haze
       const nebulaStops = root.querySelectorAll("#nebula-haze stop, .nebula-radial-stop");
       nebulaStops.forEach((st, idx) => {
-        if (idx === 0) st.setAttribute("stop-color", pal.primary);
+        if (idx === 0) st.setAttribute("stop-color", pColor);
       });
+
+      // 7. Direct Mutation on Constellation Nodes & Words for Zero-Lag Color Response
+      const activeCircles = root.querySelectorAll(".star-node.is-active circle, .star-node.is-current-upcoming circle");
+      activeCircles.forEach(c => c.setAttribute("fill", pColor));
+      const activeTexts = root.querySelectorAll(".star-node.is-current-upcoming text");
+      activeTexts.forEach(t => t.setAttribute("fill", pColor));
+
+      const pastCircles = root.querySelectorAll(".star-node.is-current-past circle, .star-node.is-past circle");
+      pastCircles.forEach(c => c.setAttribute("fill", pastColor));
+      const pastTexts = root.querySelectorAll(".star-node.is-current-past text, .star-node.is-past text");
+      pastTexts.forEach(t => t.setAttribute("fill", pastColor));
+
+      // 8. Connecting Lines
+      const activeLines = root.querySelectorAll(".const-line.is-active");
+      activeLines.forEach(l => l.setAttribute("stroke", pColor));
+      const pastLines = root.querySelectorAll(".const-line.is-past, .const-line.is-old");
+      pastLines.forEach(l => l.setAttribute("stroke", pastColor));
+
+      // 9. Floating Now Playing Widget Elements
+      const badge = root.querySelector(".const-pinned-track-badge");
+      if (badge) {
+        badge.style.boxShadow = `0 24px 60px rgba(0, 0, 0, 0.75), 0 0 35px ${gAlpha}, inset 0 1px 1.5px rgba(255, 255, 255, 0.22)`;
+      }
+      const kickerEls = root.querySelectorAll(".pinned-track-kicker");
+      kickerEls.forEach(el => {
+        if (sectionName) el.textContent = sectionName.toUpperCase();
+        el.style.color = pColor;
+      });
+      const eqBars = root.querySelectorAll(".pinned-equalizer-bars .eq-bar");
+      eqBars.forEach(b => { b.style.backgroundColor = pColor; });
+      const scrubBars = root.querySelectorAll(".widget-scrub-bar");
+      scrubBars.forEach(sb => { sb.style.backgroundColor = pColor; });
+      const vPlayBtns = root.querySelectorAll(".widget-vertical-play-btn");
+      vPlayBtns.forEach(vb => {
+        vb.style.backgroundColor = pColor;
+        vb.style.boxShadow = `0 4px 18px ${gColor}`;
+      });
+      const vArtWrappers = root.querySelectorAll(".widget-vertical-art-wrapper");
+      vArtWrappers.forEach(va => {
+        va.style.boxShadow = `0 16px 36px rgba(0, 0, 0, 0.75), 0 0 25px ${gAlpha}`;
+      });
+
+      // 10. Bottom HUD Bar Elements
+      const bottomBar = root.querySelector(".constellation-bottom-bar");
+      if (bottomBar) {
+        bottomBar.style.boxShadow = `0 16px 44px rgba(0, 0, 0, 0.65), 0 0 18px ${gAlpha}`;
+      }
+      const beaconDots = root.querySelectorAll(".bottom-beacon-dot, .hud-badge");
+      beaconDots.forEach(bd => {
+        bd.style.backgroundColor = pColor;
+        bd.style.boxShadow = `0 0 8px ${gColor}`;
+      });
+      const playPill = root.querySelector(".play-pill-btn, .hud-mode-seg.active, .section-pill.active");
+      if (playPill) playPill.style.backgroundColor = pColor;
+      const hudScrubFill = root.querySelector(".hud-scrub-fill");
+      if (hudScrubFill) hudScrubFill.style.backgroundColor = pColor;
+
+      // 11. Kinetic Typography Elements
+      const ktBanners = root.querySelectorAll(".kt-style-banner");
+      ktBanners.forEach(kb => { kb.style.backgroundColor = pColor; });
+      const ktGlyphs = root.querySelectorAll(".kt-glyph-sticker");
+      ktGlyphs.forEach(kg => { kg.style.color = pColor; });
     }
 
     if (this.progressTrailEl) {
@@ -3561,11 +3867,6 @@ class ConstellationApp extends Component {
         if (fill && fill !== "none" && fill !== "#ffffff") el.setAttribute("fill", pal.primary);
       });
     }
-
-    const kickerEls = root ? root.querySelectorAll(".pinned-track-kicker") : [];
-    kickerEls.forEach(el => {
-      if (sectionName) el.textContent = sectionName.toUpperCase();
-    });
   }
 
   handleWheel(e) {
@@ -3870,11 +4171,17 @@ class ConstellationApp extends Component {
       }
 
       if (currentSettings.chromaSpeed === "fast") {
-        if (newActiveLineIdx !== this.lastChromaLineIdx && newActiveLineIdx >= 0) {
+        const lineChanged = newActiveLineIdx !== this.lastChromaLineIdx && newActiveLineIdx >= 0;
+        const timeElapsed = (now - this.lastChromaCycleTime) >= 2400;
+
+        if (isPlaying && (lineChanged || timeElapsed)) {
           this.lastChromaLineIdx = newActiveLineIdx;
-          this.lastFastChromaIdx = (this.lastFastChromaIdx + 1) % FAST_BEAT_PALETTES.length;
-          const nextPal = FAST_BEAT_PALETTES[this.lastFastChromaIdx];
-          this.applyChromaPalette(nextPal, activeSec ? activeSec.name : "Beat");
+          this.lastChromaCycleTime = now;
+          const pals = (this.coverPalettes && this.coverPalettes.length > 0) ? this.coverPalettes : FAST_BEAT_PALETTES;
+          this.currentCoverPaletteIdx = (this.currentCoverPaletteIdx + 1) % pals.length;
+          const nextPal = pals[this.currentCoverPaletteIdx];
+          const label = activeSec ? activeSec.name : nextPal.name;
+          this.applyChromaPalette(nextPal, label);
         }
       } else {
         const secKey = activeSec ? activeSec.name : "default";
@@ -4163,6 +4470,12 @@ class ConstellationApp extends Component {
       react.createElement("div", {
         className: "const-ambient-album-backdrop",
         style: { backgroundImage: `url("${s.backdropSource === "playlist" && this.state.playlistCoverUrl ? this.state.playlistCoverUrl : trackInfo.coverUrl}")` }
+      }),
+
+      // 1b. Atmospheric Dynamic Cover Aura Backdrop (Spotify mobile lyrics style)
+      react.createElement("div", {
+        className: "const-dynamic-cover-aura",
+        ref: (el) => (this.coverAuraEl = el)
       }),
 
       // Pinned Aesthetic Floating iOS Now Playing Widget (Draggable & Resizable)

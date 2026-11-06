@@ -23,6 +23,72 @@ import {
   X,
 } from 'lucide-react';
 
+export const FAST_BEAT_PALETTES = [
+  { primary: '#00f0ff', glow: '#38bdf8', past: '#7dd3fc', name: 'Cyber Cyan' },
+  { primary: '#ff2a85', glow: '#f43f5e', past: '#f472b6', name: 'Neon Orchid' },
+  { primary: '#10b981', glow: '#34d399', past: '#6ee7b7', name: 'Aurora Mint' },
+  { primary: '#d946ef', glow: '#c084fc', past: '#e879f9', name: 'Electric Violet' },
+  { primary: '#fbbf24', glow: '#f59e0b', past: '#fcd34d', name: 'Solar Amber' },
+  { primary: '#ff3366', glow: '#f43f5e', past: '#fb7185', name: 'Mars Crimson' },
+  { primary: '#d4ff3a', glow: '#a4c442', past: '#bef264', name: 'Electric Lime' },
+];
+
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0, l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return [h * 360, s, l];
+}
+
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  h = ((h % 360) + 360) % 360;
+  let r: number, g: number, b: number;
+  if (s === 0) {
+    r = g = b = l;
+  } else {
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h / 360 + 1 / 3);
+    g = hue2rgb(p, q, h / 360);
+    b = hue2rgb(p, q, h / 360 - 1 / 3);
+  }
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+function createChromaPaletteFromHsl(h: number, s: number, l: number, name: string) {
+  const boostS = Math.max(0.86, Math.min(1.0, s * 1.15));
+  const boostL = Math.max(0.52, Math.min(0.66, l * 1.08));
+  const [pr, pg, pb] = hslToRgb(h, boostS, boostL);
+  const [gr, gg, gb] = hslToRgb(h, Math.min(1, boostS * 1.05), Math.min(0.78, boostL * 1.15));
+  const [par, pag, pab] = hslToRgb((h + 8) % 360, Math.max(0.7, boostS * 0.88), Math.min(0.72, boostL * 1.1));
+
+  const toHex = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+  return {
+    primary: `#${toHex(pr)}${toHex(pg)}${toHex(pb)}`,
+    glow: `#${toHex(gr)}${toHex(gg)}${toHex(gb)}`,
+    past: `#${toHex(par)}${toHex(pag)}${toHex(pab)}`,
+    name,
+  };
+}
+
 interface ConstellationCanvasProps {
   parsedLines: ParsedLine[];
   currentTimeMs: number;
@@ -248,6 +314,11 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
   const widgetDragStartRef = useRef({ mouseX: 0, mouseY: 0, origX: 24, origY: 24 });
   const widgetResizeStartRef = useRef({ mouseX: 0, mouseY: 0, origWidth: 390, origHeight: 96 });
   const widgetMovedRef = useRef(false);
+
+  // Dynamic Cover Art Multi-Palettes and fast periodic cycling
+  const [coverPalettes, setCoverPalettes] = useState(FAST_BEAT_PALETTES);
+  const [coverPaletteIdx, setCoverPaletteIdx] = useState(0);
+  const lastLineIdxRef = useRef(-1);
 
   const cycleWidgetSize = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -566,32 +637,87 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
     return null;
   }, [songSections, currentTimeMs]);
 
-  // Dynamic Chroma Palette for Popular Verses (Chorus/Drop/Bridge) & Beats
-  const activeChroma = useMemo(() => {
-    const secName = (activeSection?.name || '').toLowerCase();
-    if (secName.includes('chorus')) {
-      if (secName.includes('2')) return { primary: '#d946ef', glow: '#a855f7', past: '#f0abfc', name: 'Chorus 2' };
-      return { primary: '#ff2a85', glow: '#f43f5e', past: '#fda4af', name: 'Chorus' };
-    }
-    if (secName.includes('drop') || secName.includes('hook')) {
-      return { primary: '#ff3366', glow: '#ff0055', past: '#fca5a5', name: 'Drop' };
-    }
-    if (secName.includes('verse 2')) {
-      return { primary: '#10b981', glow: '#34d399', past: '#6ee7b7', name: 'Verse 2' };
-    }
-    if (secName.includes('verse 3')) {
-      return { primary: '#fbbf24', glow: '#f59e0b', past: '#fde68a', name: 'Verse 3' };
-    }
-    if (secName.includes('bridge') || secName.includes('solo')) {
-      return { primary: '#a855f7', glow: '#8b5cf6', past: '#d8b4fe', name: 'Bridge' };
-    }
-    return {
-      primary: settings.primaryColor,
-      glow: settings.glowColor,
-      past: settings.pastColor,
-      name: activeSection?.name || 'Now Playing',
+  // Dynamic Cover Art Multi-Palette Extraction
+  useEffect(() => {
+    if (!coverUrl) return;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 48;
+        canvas.height = 48;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, 48, 48);
+        const imgData = ctx.getImageData(0, 0, 48, 48).data;
+        const sectors = Array.from({ length: 8 }, () => ({ maxSat: -1, bestHsl: null as [number, number, number] | null }));
+        const sectorNames = [
+          'Crimson Nova', 'Solar Flare', 'Amber Glow', 'Emerald Mint',
+          'Cyber Cyan', 'Electric Cobalt', 'Ultraviolet', 'Neon Orchid'
+        ];
+        for (let i = 0; i < imgData.length; i += 16) {
+          const r = imgData[i], g = imgData[i + 1], b = imgData[i + 2], a = imgData[i + 3];
+          if (a < 128) continue;
+          const [h, s, l] = rgbToHsl(r, g, b);
+          if (l < 0.12 || l > 0.92) continue;
+          const secIdx = Math.floor(((h % 360) + 360) % 360 / 45);
+          if (s > sectors[secIdx].maxSat) {
+            sectors[secIdx].maxSat = s;
+            sectors[secIdx].bestHsl = [h, s, l];
+          }
+        }
+        const extracted = [];
+        for (let sIdx = 0; sIdx < 8; sIdx++) {
+          const sec = sectors[sIdx];
+          if (sec.bestHsl && sec.maxSat > 0.15) {
+            extracted.push(createChromaPaletteFromHsl(sec.bestHsl[0], sec.bestHsl[1], sec.bestHsl[2], sectorNames[sIdx]));
+          }
+        }
+        if (extracted.length >= 2) {
+          if (extracted.length < 6) {
+            const bH = sectors[0].bestHsl?.[0] || 0;
+            const shifts = [45, 90, 135, 180, 225, 270, 315];
+            for (let si = 0; si < shifts.length && extracted.length < 8; si++) {
+              const sH = (bH + shifts[si]) % 360;
+              extracted.push(createChromaPaletteFromHsl(sH, 0.88, 0.58, `Harmonic ${sectorNames[Math.floor(sH / 45)]}`));
+            }
+          }
+          setCoverPalettes(extracted.slice(0, 8));
+          setCoverPaletteIdx(0);
+        }
+      } catch (e) {}
     };
-  }, [activeSection, settings.primaryColor, settings.glowColor, settings.pastColor]);
+    img.src = coverUrl;
+  }, [coverUrl]);
+
+  // Fast periodic cover-palette rotation (every 2.4s or on lyric line advance)
+  useEffect(() => {
+    if (!isPlaying) return;
+    const interval = setInterval(() => {
+      setCoverPaletteIdx((prev) => (prev + 1) % coverPalettes.length);
+    }, 2400);
+    return () => clearInterval(interval);
+  }, [isPlaying, coverPalettes.length]);
+
+  useEffect(() => {
+    if (activeLineIdx >= 0 && activeLineIdx !== lastLineIdxRef.current) {
+      lastLineIdxRef.current = activeLineIdx;
+      setCoverPaletteIdx((prev) => (prev + 1) % coverPalettes.length);
+    }
+  }, [activeLineIdx, coverPalettes.length]);
+
+  // Dynamic Chroma Palette for Popular Verses & Beats - Whole Complete Environment Transform
+  const activeChroma = useMemo(() => {
+    const pal = coverPalettes[coverPaletteIdx % coverPalettes.length] || FAST_BEAT_PALETTES[0];
+    const displayName = activeSection?.name || pal.name;
+    return {
+      primary: pal.primary,
+      glow: pal.glow,
+      past: pal.past,
+      name: displayName,
+    };
+  }, [coverPalettes, coverPaletteIdx, activeSection]);
 
   // Ultra-smooth 60/120 FPS continuous linear positioning loop
   useEffect(() => {
@@ -742,6 +868,15 @@ export const ConstellationCanvas: React.FC<ConstellationCanvasProps> = ({
       onMouseLeave={handleMouseUp}
       onWheel={handleWheel}
     >
+      {/* Dynamic Atmospheric Cover Aura Backdrop (Spotify mobile lyrics style) */}
+      <div
+        className="absolute inset-0 pointer-events-none z-0 transition-all duration-700 ease-out"
+        style={{
+          background: `radial-gradient(ellipse at 50% 38%, ${activeChroma.primary}33 0%, ${activeChroma.glow}18 45%, transparent 75%)`,
+          opacity: 0.95,
+        }}
+      />
+
       {/* SVG Celestial Field */}
       <svg
         ref={svgRef}
